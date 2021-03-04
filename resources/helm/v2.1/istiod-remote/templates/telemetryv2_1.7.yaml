@@ -172,6 +172,7 @@ spec:
               value:
                 protocol: istio-peer-exchange
 ---
+# Note: http stats filter is wasm enabled only in sidecars.
 {{- if .Values.telemetry.v2.prometheus.enabled }}
 apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter

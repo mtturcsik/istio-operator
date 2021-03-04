@@ -18,6 +18,7 @@ const (
 	WASMExtensionsChart  = "wasm-extensions"
 	RemoteChart          = "istiod-remote"
 	RLSChart             = "rls"
+	RemoteChart          = "istiod-remote"
 
 	// Event reasons
 	eventReasonRendering = "Rendering"
