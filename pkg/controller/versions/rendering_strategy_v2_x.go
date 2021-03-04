@@ -16,6 +16,7 @@ const (
 	ThreeScaleChart      = "maistra-threescale"
 	TracingChart         = "tracing"
 	WASMExtensionsChart  = "wasm-extensions"
+	RemoteChart          = "istiod-remote"
 
 	// Event reasons
 	eventReasonRendering = "Rendering"
