@@ -8,6 +8,12 @@ metadata:
     heritage: Tiller
     release: istio
   name: workloadgroups.networking.istio.io
+  labels:
+    maistra-version: "2.1.0"
+    app: istio-pilot
+    chart: istio
+    heritage: Tiller
+    release: istio
 spec:
   additionalPrinterColumns:
   - JSONPath: .metadata.creationTimestamp
