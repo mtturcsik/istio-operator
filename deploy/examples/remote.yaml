@@ -2,7 +2,50 @@ apiVersion: maistra.io/v2
 kind: ServiceMeshControlPlane
 metadata:
   name: huszty
+  namespace: external-istiod
 spec:
   version: "v2.1"
   profiles:
     - "remote"
+  gateways:
+    enabled: true
+    ingress:
+      enabled: true
+      ingress: true
+      service:
+        type: ClusterIP
+    egress:
+      enabled: false
+    openshiftRoute:
+      enabled: false
+  techPreview:
+    meshConfig:
+      rootNamespace: external-istiod
+      defaultConfig:
+        discoveryAddress: <CONTROLPLANE>:15012
+        proxyMetadata:
+          XDS_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
+          CA_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
+    global:
+      pilotCertProvider: <CONTROLPLANE>:15012
+      caAddress: <CONTROLPLANE>:15012
+      istioNamespace: external-istiod
+      meshID: mesh1
+      multiCluster:
+        clusterName: maistra-dp
+    sidecarInjectorWebhook:
+      injectedAnnotations:
+        k8s.v1.cni.cncf.io/networks: "istio-cni"  
+    istiodRemote:
+      injectionURL: https://<CONTROLPLANE>:15017/inject
+    base:
+      validationURL: https://<CONTROLPLANE>:15017/validate
+---
+apiVersion: maistra.io/v1
+kind: ServiceMeshMemberRoll
+metadata:
+  namespace: external-istiod
+  name: default
+spec:
+  members:
+  - default
