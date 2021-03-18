@@ -452,6 +452,11 @@ function hacks() {
     }' ${HELM_DIR}/istio-control/istio-discovery/templates/deployment.yaml
 }
 
+function patchKindErrors() {
+  sed_wrap -i -e '/# Note: http.*/d' ${HELM_DIR}/mesh-config/templates/telemetryv2_1.7.yaml
+  sed_wrap -i -e '/# Note: http.*/d' ${HELM_DIR}/mesh-config/templates/telemetryv2_1.8.yaml
+}
+
 copyOverlay
 removeUnsupportedCharts
 
@@ -464,6 +469,7 @@ patchSidecarInjector
 #patchKialiTemplate # no longer present upstream
 #patchKialiOpenShift
 moveEnvoyFiltersToMeshConfigChart
+patchKindErrors
 
 # XXX: hacks - remove before 2.0 release
 hacks
