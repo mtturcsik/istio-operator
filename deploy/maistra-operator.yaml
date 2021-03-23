@@ -10675,6 +10675,8 @@ spec:
         olm.relatedImage.v2_1.wasm-cacher: docker.io/maistra/pilot-ubi8:2.1.0
         olm.relatedImage.v2_1.rls: docker.io/maistra/ratelimit-ubi8:2.1.0
 
+        olm.cniEnabled: "false"
+
     spec:
       serviceAccountName: istio-operator
       containers:
