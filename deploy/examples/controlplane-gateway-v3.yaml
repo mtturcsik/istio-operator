@@ -4,6 +4,11 @@ metadata:
   name: minimal
 spec:
   version: v2.1
+  runtime:
+    defaults:
+      container:
+        imageRegistry: smesh21
+        imageTag: 2.1.0
   gateways:
      enabled: true
      ingress:
