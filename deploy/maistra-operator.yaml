@@ -6988,11 +6988,13 @@ spec:
         olm.relatedImage.v2_1.proxyv2: docker.io/maistra/proxyv2-ubi8:2.1.0
         olm.relatedImage.v2_1.wasm-cacher: docker.io/maistra/pilot-ubi8:2.1.0
 
+        olm.cniEnabled: "false"
+
     spec:
       serviceAccountName: istio-operator
       containers:
       - name: istio-operator
-        image: maistra/istio-ubi8-operator:2.1.0
+        image: smesh21/istio-ubi8-operator:excp.5
         ports:
         - containerPort: 11999
           name: validation
