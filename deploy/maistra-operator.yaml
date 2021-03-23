@@ -10687,6 +10687,8 @@ spec:
 
         olm.cniDisabled: "true"
 
+        olm.cniEnabled: "false"
+
     spec:
       serviceAccountName: istio-operator
       containers:

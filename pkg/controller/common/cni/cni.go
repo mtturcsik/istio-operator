@@ -28,7 +28,8 @@ func InitConfig(m manager.Manager) (Config, error) {
 		log := logf.Log.WithName("controller_init")
 		log.Info(fmt.Sprintf("CNI is enabled for this installation: %v", config.Enabled))
 	}()
-	if common.Config.OLM.CNIDisabled {
+
+	if !common.Config.OLM.CNIEnabled {
 		config.Enabled = false
 		return config, nil
 	}
