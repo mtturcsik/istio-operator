@@ -93,6 +93,8 @@ spec:
           ingress:
             enabled: false
   techPreview:
+    global:
+      configValidation: false
     wasmExtensions:
       enabled: false
     sidecarInjectorWebhook:
