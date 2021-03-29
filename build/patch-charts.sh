@@ -382,6 +382,7 @@ function patchSidecarInjector() {
       values:\
       - "true"\
 \{\{- end \}\}\
+\{\{- end \}\}\
 \{\{- end \}\}
 '
   sed_wrap -i -e "/if .Values.sidecarInjectorWebhook.enableNamespacesByDefault/ i$matchExpr" $webhookconfig
@@ -389,8 +390,6 @@ function patchSidecarInjector() {
   sed_wrap -i -e '/if .Values.sidecarInjectorWebhook.enableNamespacesByDefault/,$d' $webhookconfig
 
   echo "{{- end }}" >> $webhookconfig
-  # remove {{- if not .Values.global.operatorManageWebhooks }} ... {{- end }}
-  sed_wrap -i -e '/operatorManageWebhooks/ d' $webhookconfig
 
   # - change privileged value on istio-proxy injection configmap to false
   # setting the proper values will fix this:
@@ -528,8 +527,10 @@ function hacks() {
 }
 
 function patchKindErrors() {
+  echo "patching Kind errors"
   sed_wrap -i -e '/# Note: http.*/d' ${HELM_DIR}/mesh-config/templates/telemetryv2_1.7.yaml
   sed_wrap -i -e '/# Note: http.*/d' ${HELM_DIR}/mesh-config/templates/telemetryv2_1.8.yaml
+  sed_wrap -i -e '/# .*/d' ${HELM_DIR}/istio-control/istio-discovery/templates/mutatingwebhook.yaml
 }
 
 copyOverlay
