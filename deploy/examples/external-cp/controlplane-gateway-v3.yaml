@@ -95,6 +95,7 @@ spec:
   techPreview:
     global:
       configValidation: false
+      operatorManageWebhooks: true
     wasmExtensions:
       enabled: false
     sidecarInjectorWebhook:
