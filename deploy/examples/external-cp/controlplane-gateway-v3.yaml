@@ -15,7 +15,7 @@ spec:
        enabled: true
        ingress: true
        service:
-         type: ClusterIP
+         type: LoadBalancer
      egress:
        enabled: false
      openshiftRoute:
@@ -107,6 +107,7 @@ metadata:
   name: default
 spec:
   members:
+  #- hello
   # a list of namespaces that should be joined into the service mesh
   # for example, to add the bookinfo namespace
   #- bookinfo
