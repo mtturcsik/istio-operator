@@ -966,6 +966,8 @@ spec:
                                   port:
                                     format: int32
                                     type: integer
+                                  registryServiceName:
+                                    type: string
                                   service:
                                     type: string
                                 type: object
@@ -3996,6 +3998,8 @@ spec:
                                       port:
                                         format: int32
                                         type: integer
+                                      registryServiceName:
+                                        type: string
                                       service:
                                         type: string
                                     type: object
