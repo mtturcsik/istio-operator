@@ -22,24 +22,24 @@ spec:
     meshConfig:
       rootNamespace: external-istiod
       defaultConfig:
-        discoveryAddress: <CONTROLPLANE>:15012
+        discoveryAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
         proxyMetadata:
           XDS_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
           CA_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
     global:
-      pilotCertProvider: <CONTROLPLANE>:15012
-      caAddress: <CONTROLPLANE>:15012
+      pilotCertProvider: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
+      caAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
       istioNamespace: external-istiod
       meshID: mesh1
       multiCluster:
-        clusterName: maistra-dp
+        clusterName: remote
     sidecarInjectorWebhook:
       injectedAnnotations:
         k8s.v1.cni.cncf.io/networks: "istio-cni"  
     istiodRemote:
-      injectionURL: https://<CONTROLPLANE>:15017/inject
+      injectionURL: https://external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:443/inject
     base:
-      validationURL: https://<CONTROLPLANE>:15017/validate
+      validationURL: https://external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:443/validate
 ---
 apiVersion: maistra.io/v1
 kind: ServiceMeshMemberRoll
