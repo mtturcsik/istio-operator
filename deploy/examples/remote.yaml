@@ -6,3 +6,45 @@ spec:
   version: "v2.1"
   profiles:
     - "remote"
+  gateways:
+    enabled: true
+    ingress:
+      enabled: true
+      ingress: true
+      service:
+        type: ClusterIP
+    egress:
+      enabled: false
+    openshiftRoute:
+      enabled: false
+  techPreview:
+    meshConfig:
+      rootNamespace: external-istiod
+      defaultConfig:
+        discoveryAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
+        proxyMetadata:
+          XDS_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
+          CA_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
+    global:
+      pilotCertProvider: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
+      caAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
+      istioNamespace: external-istiod
+      meshID: mesh1
+      multiCluster:
+        clusterName: remote
+    sidecarInjectorWebhook:
+      injectedAnnotations:
+        k8s.v1.cni.cncf.io/networks: "istio-cni"  
+    istiodRemote:
+      injectionURL: https://external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:443/inject
+    base:
+      validationURL: https://external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:443/validate
+---
+apiVersion: maistra.io/v1
+kind: ServiceMeshMemberRoll
+metadata:
+  namespace: external-istiod
+  name: default
+spec:
+  members:
+  - default
