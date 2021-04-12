@@ -1,7 +1,7 @@
 apiVersion: maistra.io/v2
 kind: ServiceMeshControlPlane
 metadata:
-  name: minimal
+  name: excp
 spec:
   version: v2.1
   runtime:
@@ -94,33 +94,24 @@ spec:
     meshConfig:
       rootNamespace: external-istiod
       defaultConfig:
-        discoveryAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0001.eu-de.containers.appdomain.cloud:15012
+        discoveryAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
         proxyMetadata:
-          XDS_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
-          CA_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
+          XDS_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
+          CA_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
     global:
-      caAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0001.eu-de.containers.appdomain.cloud:15012
+      caAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
       istioNamespace: external-istiod
       meshID: mesh1
       multiCluster:
-        clusterName: maistra-dp
+        clusterName: remote
       configValidation: false
       operatorManageWebhooks: true
-    wasmExtensions:
-      enabled: false
     sidecarInjectorWebhook:
-      objectSelector:
-        enabled: false
-
----
-
-apiVersion: maistra.io/v1
-kind: ServiceMeshMemberRoll
-metadata:
-  name: default
-spec:
-  members:
-  #- hello
-  # a list of namespaces that should be joined into the service mesh
-  # for example, to add the bookinfo namespace
-  #- bookinfo
+      injectedAnnotations:
+        k8s.v1.cni.cncf.io/networks: "istio-cni"
+    istio_cni:
+      enabled: true
+    pilot:
+      env:
+        INJECTION_WEBHOOK_CONFIG_NAME: ""
+        VALIDATION_WEBHOOK_CONFIG_NAME: ""
