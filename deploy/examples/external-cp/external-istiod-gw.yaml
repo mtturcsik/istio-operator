@@ -17,7 +17,7 @@ spec:
       hosts:
       - external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud
     - port:
-        number: 443
+        number: 8443
         protocol: https
         name: https-WEBHOOK
       tls:
@@ -43,9 +43,9 @@ spec:
       - destination:
           host: istiod.external-istiod.svc.cluster.local
           port:
-            number: 15010
+            number: 15012
     - match:
-      - port: 443
+      - port: 8443
       route:
       - destination:
           host: istiod.external-istiod.svc.cluster.local
@@ -69,6 +69,6 @@ spec:
         http:
           h2UpgradePolicy: UPGRADE
     - port:
-        number: 443
+        number: 8443
       tls:
         mode: SIMPLE
