@@ -13,7 +13,7 @@ spec:
       enabled: true
       ingress: true
       service:
-        type: ClusterIP
+        type: LoadBalancer
     egress:
       enabled: false
     openshiftRoute:
