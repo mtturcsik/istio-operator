@@ -3,12 +3,9 @@ kind: ServiceMeshControlPlane
 metadata:
   name: excp
 spec:
-  version: v2.1
-  runtime:
-    defaults:
-      container:
-        imageRegistry: smesh21
-        imageTag: 2.1.0
+  cluster:
+    multiCluster:
+      enabled: true
   gateways:
      enabled: false
      ingress:
@@ -22,10 +19,6 @@ spec:
     logging:
       componentLevels:
         default: warn
-  istio_cni:
-    repair:
-      enabled: false
-
   proxy:
     injection:
       autoInject: false
@@ -38,16 +31,13 @@ spec:
         refreshRate: 300s
 
   security:
-    enabled: false
     identity:
       type: Kubernetes
 
   telemetry:
-    enabled: false
-    type: Istiod
+    type: None
 
   policy:
-    enabled: false
     type: None
 
   tracing:
@@ -92,15 +82,15 @@ spec:
             enabled: false
   techPreview:
     meshConfig:
-      rootNamespace: external-istiod
+      rootNamespace: default
       defaultConfig:
-        discoveryAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
+        discoveryAddress: abc:15443
         proxyMetadata:
           XDS_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
           CA_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
     global:
-      caAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
-      istioNamespace: external-istiod
+      caAddress: abc:15443
+      istioNamespace: default
       meshID: mesh1
       multiCluster:
         clusterName: remote
