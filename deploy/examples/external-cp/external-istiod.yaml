@@ -4,93 +4,15 @@ metadata:
   name: excp
   namespace: external-istiod
 spec:
+  profiles:
+    - "external"
   version: v2.1
-  runtime:
-    defaults:
-      container:
-        imageRegistry: smesh21
-        imageTag: 2.1.0
-  gateways:
-     enabled: false
-     ingress:
-       enabled: false
-       ingress: false
-     egress:
-       enabled: false
-     openshiftRoute:
-       enabled: false
+
   general:
     logging:
       componentLevels:
-        default: warn
-  istio_cni:
-    repair:
-      enabled: false
+        default: debug
 
-  proxy:
-    injection:
-      autoInject: false
-    networking:
-      protocol:
-        autoDetect:
-          inbound: false
-          outbound: false
-      dns:
-        refreshRate: 300s
-
-  security:
-    enabled: false
-    identity:
-      type: Kubernetes
-
-  telemetry:
-    enabled: false
-    type: Istiod
-
-  policy:
-    enabled: false
-    type: None
-
-  tracing:
-    type: None
-
-  addons:
-    prometheus:
-      enabled: false
-      install:
-        service:
-          metadata:
-            annotations:
-              service.alpha.openshift.io/serving-cert-secret-name: prometheus-tls
-          ingress:
-            enabled: false
-
-    jaeger:
-      name: jaeger
-      install:
-        storage:
-          type: Memory
-        ingress:
-          enabled: false
-
-    grafana:
-      enabled: false
-      install:
-        service:
-          metadata:
-            annotations:
-              service.alpha.openshift.io/serving-cert-secret-name: grafana-tls
-          ingress:
-            enabled: false
-    kiali:
-      enabled: false
-      name: kiali
-      install:
-        dashboard:
-          viewOnly: false
-        service:
-          ingress:
-            enabled: false
   techPreview:
     meshConfig:
       rootNamespace: external-istiod
