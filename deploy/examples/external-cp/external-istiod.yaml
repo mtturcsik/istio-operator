@@ -18,7 +18,7 @@ spec:
   general:
     logging:
       componentLevels:
-        default: warn
+        default: debug
   proxy:
     injection:
       autoInject: false
@@ -105,3 +105,12 @@ spec:
       env:
         INJECTION_WEBHOOK_CONFIG_NAME: ""
         VALIDATION_WEBHOOK_CONFIG_NAME: ""
+---
+apiVersion: maistra.io/v1
+kind: ServiceMeshMemberRoll
+metadata:
+  namespace: default
+  name: default
+spec:
+  members:
+  - default
