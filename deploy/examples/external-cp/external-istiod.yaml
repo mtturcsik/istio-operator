@@ -3,83 +3,15 @@ kind: ServiceMeshControlPlane
 metadata:
   name: excp
 spec:
-  cluster:
-    multiCluster:
-      enabled: true
-  gateways:
-     enabled: false
-     ingress:
-       enabled: false
-       ingress: false
-     egress:
-       enabled: false
-     openshiftRoute:
-       enabled: false
+  profiles:
+    - "external"
+  version: v2.1
+
   general:
     logging:
       componentLevels:
         default: debug
-  proxy:
-    injection:
-      autoInject: false
-    networking:
-      protocol:
-        autoDetect:
-          inbound: false
-          outbound: false
-      dns:
-        refreshRate: 300s
 
-  security:
-    identity:
-      type: Kubernetes
-
-  telemetry:
-    type: None
-
-  policy:
-    type: None
-
-  tracing:
-    type: None
-
-  addons:
-    prometheus:
-      enabled: false
-      install:
-        service:
-          metadata:
-            annotations:
-              service.alpha.openshift.io/serving-cert-secret-name: prometheus-tls
-          ingress:
-            enabled: false
-
-    jaeger:
-      name: jaeger
-      install:
-        storage:
-          type: Memory
-        ingress:
-          enabled: false
-
-    grafana:
-      enabled: false
-      install:
-        service:
-          metadata:
-            annotations:
-              service.alpha.openshift.io/serving-cert-secret-name: grafana-tls
-          ingress:
-            enabled: false
-    kiali:
-      enabled: false
-      name: kiali
-      install:
-        dashboard:
-          viewOnly: false
-        service:
-          ingress:
-            enabled: false
   techPreview:
     meshConfig:
       rootNamespace: default
@@ -94,8 +26,6 @@ spec:
       meshID: mesh1
       multiCluster:
         clusterName: remote
-      configValidation: false
-      operatorManageWebhooks: true
     sidecarInjectorWebhook:
       injectedAnnotations:
         k8s.v1.cni.cncf.io/networks: "istio-cni"
@@ -105,12 +35,4 @@ spec:
       env:
         INJECTION_WEBHOOK_CONFIG_NAME: ""
         VALIDATION_WEBHOOK_CONFIG_NAME: ""
----
-apiVersion: maistra.io/v1
-kind: ServiceMeshMemberRoll
-metadata:
-  namespace: default
-  name: default
-spec:
-  members:
-  - default
+
