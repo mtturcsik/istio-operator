@@ -2,6 +2,7 @@ apiVersion: maistra.io/v2
 kind: ServiceMeshControlPlane
 metadata:
   name: excp
+  namespace: external-istiod
 spec:
   profiles:
     - "external"
@@ -28,7 +29,7 @@ spec:
 
   techPreview:
     meshConfig:
-      rootNamespace: default
+      rootNamespace: external-istiod
       defaultConfig:
         discoveryAddress: <CP_URL>:15012
         proxyMetadata:
@@ -40,6 +41,8 @@ spec:
       meshID: mesh1
       multiCluster:
         clusterName: remote
+      configValidation: false
+      operatorManageWebhooks: true
     sidecarInjectorWebhook:
       injectedAnnotations:
         k8s.v1.cni.cncf.io/networks: "istio-cni"
