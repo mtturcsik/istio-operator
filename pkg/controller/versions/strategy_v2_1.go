@@ -374,6 +374,29 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 		v2_1ChartMapping[TelemetryCommonChart] = telemetryCommonChartDetails
 	}
 
+	externalProfileFound := false
+	for _, profile := range spec.Profiles {
+		if profile == "external" {
+			externalProfileFound = true
+			break
+		}
+	}
+	if externalProfileFound {
+		log.Info("External Control Plane profile used. Disabling everything else, except the discovery Chart.")
+		meshConfigChartDetails := v2_1ChartMapping[MeshConfigChart]
+		meshConfigChartDetails.enabledField = "noway"
+		v2_1ChartMapping[MeshConfigChart] = meshConfigChartDetails
+		telemetryCommonChartDetails := v2_1ChartMapping[TelemetryCommonChart]
+		telemetryCommonChartDetails.enabledField = "noway"
+		v2_1ChartMapping[TelemetryCommonChart] = telemetryCommonChartDetails
+		gatewayEgressChartDetails := v2_1ChartMapping[GatewayEgressChart]
+		gatewayEgressChartDetails.enabledField = "noway"
+		v2_1ChartMapping[GatewayEgressChart] = gatewayEgressChartDetails
+		gatewayInressChartDetails := v2_1ChartMapping[GatewayIngressChart]
+		gatewayInressChartDetails.enabledField = "noway"
+		v2_1ChartMapping[GatewayIngressChart] = gatewayInressChartDetails
+	}
+
 	// convert back to the v2 type
 	smcp.Status.AppliedSpec = v2.ControlPlaneSpec{}
 	err = cr.Scheme.Convert(&smcp.Status.AppliedValues, &smcp.Status.AppliedSpec, nil)
@@ -425,7 +448,7 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 		}
 	}
 
-	if isComponentEnabled(spec.Istio, "gateways") {
+	if isComponentEnabled(spec.Istio, "gateways") && !externalProfileFound {
 		log.V(2).Info("rendering gateways charts")
 		if origGateways, ok := values.AsMap()["gateways"]; ok {
 			if origGatewaysMap, ok := origGateways.(map[string]interface{}); ok {

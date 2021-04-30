@@ -1,7 +1,7 @@
 apiVersion: maistra.io/v2
 kind: ServiceMeshControlPlane
 metadata:
-  name: huszty
+  name: remote
   namespace: external-istiod
 spec:
   version: "v2.1"
@@ -22,13 +22,13 @@ spec:
     meshConfig:
       rootNamespace: external-istiod
       defaultConfig:
-        discoveryAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
+        discoveryAddress: <CP_URL>:15010
         proxyMetadata:
           XDS_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
           CA_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
     global:
-      pilotCertProvider: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
-      caAddress: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:15443
+      pilotCertProvider: <CP_URL>:15010
+      caAddress: <CP_URL>:15010
       istioNamespace: external-istiod
       meshID: mesh1
       multiCluster:
@@ -37,9 +37,9 @@ spec:
       injectedAnnotations:
         k8s.v1.cni.cncf.io/networks: "istio-cni"  
     istiodRemote:
-      injectionURL: https://external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:443/inject
+      injectionURL: https://<CP_URL>:443/inject
     base:
-      validationURL: https://external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud:443/validate
+      validationURL: https://<CP_URL>:443/validate
 ---
 apiVersion: maistra.io/v1
 kind: ServiceMeshMemberRoll
