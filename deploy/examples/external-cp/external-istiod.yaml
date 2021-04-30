@@ -30,12 +30,12 @@ spec:
     meshConfig:
       rootNamespace: default
       defaultConfig:
-        discoveryAddress: abc:15443
+        discoveryAddress: <CP_URL>:15010
         proxyMetadata:
           XDS_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
           CA_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
     global:
-      caAddress: abc:15443
+      caAddress: <CP_URL>:15010
       istioNamespace: default
       meshID: mesh1
       multiCluster:

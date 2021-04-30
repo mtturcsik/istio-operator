@@ -1,3 +1,6 @@
+# This content is consumed by another mesh instance, not the same as will serve the remote dataplane.
+# The purpose is to expose the istiod services towards the remote dataplane. Could be achieved by any other L7 Ingress GW.
+
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
@@ -8,23 +11,23 @@ spec:
     istio: ingressgateway
   servers:
     - port:
-        number: 15443
+        number: 15010
         protocol: https
         name: https-XDS
       tls:
         mode: SIMPLE
-        credentialName: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002
+        credentialName: <TLS_SECRET_NAME>
       hosts:
-      - external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud
+      - <CP_URL>
     - port:
         number: 443
         protocol: https
         name: https-WEBHOOK
       tls:
         mode: SIMPLE
-        credentialName: external-opneshift-72287d3323ba21ca6bea483947a1068a-0002
+        credentialName: <TLS_SECRET_NAME>
       hosts:
-      - external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud
+      - <CP_URL>
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -33,22 +36,22 @@ metadata:
    namespace: external-istiod
 spec:
     hosts:
-    - external-opneshift-72287d3323ba21ca6bea483947a1068a-0002.eu-de.containers.appdomain.cloud
+    - <CP_URL>
     gateways:
     - external-istiod-gw
     http:
     - match:
-      - port: 15443
+      - port: 15010
       route:
       - destination:
-          host: istiod.external-istiod.svc.cluster.local
+          host: istiod-<SMCP_NAME>.external-istiod.svc.cluster.local
           port:
             number: 15010
     - match:
       - port: 443
       route:
       - destination:
-          host: istiod.external-istiod.svc.cluster.local
+          host: istiod-<SMCP_NAME>.external-istiod.svc.cluster.local
           port:
             number: 443
 ---
@@ -58,11 +61,11 @@ metadata:
   name: external-istiod-dr
   namespace: external-istiod
 spec:
-  host: istiod.external-istiod.svc.cluster.local
+  host: istiod-<SMCP_NAME>.external-istiod.svc.cluster.local
   trafficPolicy:
     portLevelSettings:
     - port:
-        number: 15443
+        number: 15010
       tls:
         mode: SIMPLE
       connectionPool:

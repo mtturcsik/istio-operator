@@ -45,9 +45,6 @@ spec:
     enabled: false
     type: None
 
-  tracing:
-    type: None
-
   cluster:
     multiCluster:
       enabled: true
