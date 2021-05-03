@@ -11,7 +11,7 @@ spec:
     istio: ingressgateway
   servers:
     - port:
-        number: 15010
+        number: 15012
         protocol: https
         name: https-XDS
       tls:
@@ -41,12 +41,12 @@ spec:
     - external-istiod-gw
     http:
     - match:
-      - port: 15010
+      - port: 15012
       route:
       - destination:
           host: istiod-<SMCP_NAME>.external-istiod.svc.cluster.local
           port:
-            number: 15010
+            number: 15012
     - match:
       - port: 443
       route:
@@ -65,7 +65,7 @@ spec:
   trafficPolicy:
     portLevelSettings:
     - port:
-        number: 15010
+        number: 15012
       tls:
         mode: SIMPLE
       connectionPool:

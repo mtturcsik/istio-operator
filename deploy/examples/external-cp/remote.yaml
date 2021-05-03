@@ -22,13 +22,13 @@ spec:
     meshConfig:
       rootNamespace: external-istiod
       defaultConfig:
-        discoveryAddress: <CP_URL>:15010
+        discoveryAddress: <CP_URL>:15012
         proxyMetadata:
           XDS_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
           CA_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
     global:
-      pilotCertProvider: <CP_URL>:15010
-      caAddress: <CP_URL>:15010
+      pilotCertProvider: <CP_URL>:15012
+      caAddress: <CP_URL>:15012
       istioNamespace: external-istiod
       meshID: mesh1
       multiCluster:
