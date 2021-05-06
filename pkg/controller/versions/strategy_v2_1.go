@@ -95,10 +95,10 @@ var v2_1ChartOrder = [][]string{
 	{DiscoveryChart},
 	{MeshConfigChart},
 	{TelemetryCommonChart, PrometheusChart},
+	{RemoteChart},
 	{MixerPolicyChart, MixerTelemetryChart, TracingChart, GatewayIngressChart, GatewayEgressChart, GrafanaChart},
 	{KialiChart},
 	{ThreeScaleChart, WASMExtensionsChart, RLSChart},
-	{RemoteChart},
 }
 
 type versionStrategyV2_1 struct {
