@@ -6988,7 +6988,7 @@ spec:
         olm.relatedImage.v2_1.proxyv2: smesh21/proxyv2-ubi8:2.1.0
         olm.relatedImage.v2_1.wasm-cacher: docker.io/maistra/pilot-ubi8:2.1.0
 
-        olm.cniEnabled: "false"
+        olm.cniDisabled: "true"
 
     spec:
       serviceAccountName: istio-operator
