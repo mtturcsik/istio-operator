@@ -10687,7 +10687,7 @@ spec:
 
         olm.cniDisabled: "true"
 
-        olm.cniEnabled: "false"
+        olm.cniDisabled: "true"
 
     spec:
       serviceAccountName: istio-operator
