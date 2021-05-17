@@ -37,9 +37,9 @@ spec:
       injectedAnnotations:
         k8s.v1.cni.cncf.io/networks: "istio-cni"  
     istiodRemote:
-      injectionURL: https://<CP_URL>:443/inject
+      injectionURL: https://<CP_URL>:15017/inject
     base:
-      validationURL: https://<CP_URL>:443/validate
+      validationURL: https://<CP_URL>:15017/validate
 ---
 apiVersion: maistra.io/v1
 kind: ServiceMeshMemberRoll
