@@ -6994,7 +6994,7 @@ spec:
       serviceAccountName: istio-operator
       containers:
       - name: istio-operator
-        image: smesh21/istio-ubi8-operator:rmt
+        image: smesh21/istio-ubi8-operator:2.1.0
         ports:
         - containerPort: 11999
           name: validation
