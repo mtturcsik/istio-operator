@@ -33,11 +33,11 @@ spec:
       defaultConfig:
         discoveryAddress: <CP_URL>:15012
         proxyMetadata:
-          XDS_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
-          CA_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
+          XDS_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
+          CA_ROOT_CA: /etc/ssl/certs/ca-bundle.crt
     global:
       caAddress: <CP_URL>:15012
-      istioNamespace: default
+      istioNamespace: external-istiod
       meshID: mesh1
       multiCluster:
         clusterName: remote
