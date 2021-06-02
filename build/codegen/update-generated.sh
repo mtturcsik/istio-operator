@@ -35,3 +35,10 @@ bash vendor/k8s.io/code-generator/generate-groups.sh \
     github.com/maistra/istio-operator/pkg/apis/external \
     "jaeger:v1 kiali:v1alpha1" \
     --go-header-file "./build/codegen/boilerplate.go.txt"
+
+bash vendor/k8s.io/code-generator/generate-groups.sh \
+client \
+github.com/maistra/istio-operator/pkg \
+github.com/maistra/istio-operator/pkg/apis \
+"maistra:v2" \
+--go-header-file "./build/codegen/boilerplate.go.txt"
