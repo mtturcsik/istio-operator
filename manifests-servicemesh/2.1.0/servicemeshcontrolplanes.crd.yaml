@@ -1207,7 +1207,6 @@ spec:
                                     format: int32
                                     type: integer
                                   protocol:
-                                    default: TCP
                                     type: string
                                   targetPort:
                                     anyOf:
@@ -1586,7 +1585,6 @@ spec:
                                     format: int32
                                     type: integer
                                   protocol:
-                                    default: TCP
                                     type: string
                                   targetPort:
                                     anyOf:
@@ -4241,7 +4239,6 @@ spec:
                                         format: int32
                                         type: integer
                                       protocol:
-                                        default: TCP
                                         type: string
                                       targetPort:
                                         anyOf:
@@ -4620,7 +4617,6 @@ spec:
                                         format: int32
                                         type: integer
                                       protocol:
-                                        default: TCP
                                         type: string
                                       targetPort:
                                         anyOf:
