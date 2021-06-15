@@ -44,3 +44,17 @@ spec:
         initContainer:
           runtime:
             imageName: proxy-init-rhel7
+
+  techPreview:
+    meshConfig:
+      enabled: true 
+    istioDiscovery:
+      enabled: true 
+    maistraThreescale:
+      enabled: true 
+    telemetryCommon:
+      enabled: true 
+    gatewayIngress:
+      enabled: true
+    gatewayEgress:
+      enabled: true

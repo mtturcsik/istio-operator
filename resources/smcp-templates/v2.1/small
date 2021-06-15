@@ -79,3 +79,17 @@ spec:
             cpu: 10m
             memory: 128Mi
           limits: {}
+
+  techPreview:
+    meshConfig:
+      enabled: true 
+    istioDiscovery:
+      enabled: true 
+    maistraThreescale:
+      enabled: true 
+    telemetryCommon:
+      enabled: true 
+    gatewayIngress:
+      enabled: true
+    gatewayEgress:
+      enabled: true

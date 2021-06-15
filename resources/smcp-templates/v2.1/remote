@@ -84,3 +84,12 @@ spec:
     sidecarInjectorWebhook:
       objectSelector:
         enabled: false
+    meshConfig:
+      enabled: false
+    istioDiscovery:
+      enabled: false
+    maistraThreescale:
+      enabled: false
+    telemetryCommon:
+      enabled: false
+    

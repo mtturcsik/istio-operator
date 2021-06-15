@@ -96,3 +96,16 @@ spec:
     global:
       configValidation: false
       operatorManageWebhooks: true
+
+    meshConfig:
+      enabled: false 
+    istioDiscovery:
+      enabled: true 
+    maistraThreescale:
+      enabled: true 
+    telemetryCommon:
+      enabled: false
+    gatewayIngress:
+      enabled: false
+    gatewayEgress:
+      enabled: false
