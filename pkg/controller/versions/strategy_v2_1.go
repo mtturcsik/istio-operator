@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/go-logr/logr"
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -31,23 +30,19 @@ var (
 	v2_1ChartMapping = map[string]chartRenderingDetails{
 		DiscoveryChart: {
 			path:         "istio-control/istio-discovery",
-			enabledField: "",
+			enabledField: "istioDiscovery",
 		},
 		GatewayIngressChart: {
 			path:         "gateways/istio-ingress",
-			enabledField: "",
+			enabledField: "gatewayIngress",
 		},
 		GatewayEgressChart: {
 			path:         "gateways/istio-egress",
-			enabledField: "",
+			enabledField: "gatewayEgress",
 		},
 		TelemetryCommonChart: {
 			path:         "istio-telemetry/telemetry-common",
-			enabledField: "",
-		},
-		MixerTelemetryChart: {
-			path:         "istio-telemetry/mixer-telemetry",
-			enabledField: "mixer.telemetry",
+			enabledField: "telemetryCommon",
 		},
 		PrometheusChart: {
 			path:         "istio-telemetry/prometheus",
@@ -71,11 +66,11 @@ var (
 		},
 		ThreeScaleChart: {
 			path:         "maistra-threescale",
-			enabledField: "",
+			enabledField: "maistraThreescale",
 		},
 		MeshConfigChart: {
 			path:         "mesh-config",
-			enabledField: "",
+			enabledField: "meshConfig",
 		},
 		WASMExtensionsChart: {
 			path:         "wasm-extensions",
@@ -179,39 +174,6 @@ func (v *versionStrategyV2_1) isExternalProfileActive(profiles []string) bool {
 		}
 	}
 	return false
-}
-
-func (v *versionStrategyV2_1) checkAndSetupRemoteDataPlaneConfig(istio *v1.HelmValues, log logr.Logger) {
-	if isComponentEnabled(istio, v2_1ChartMapping[RemoteChart].enabledField) {
-		log.Info("Remote chart used. Disabling everything else.")
-		discoveryChartDetails := v2_1ChartMapping[DiscoveryChart]
-		discoveryChartDetails.enabledField = "noway"
-		v2_1ChartMapping[DiscoveryChart] = discoveryChartDetails
-		meshConfigChartDetails := v2_1ChartMapping[MeshConfigChart]
-		meshConfigChartDetails.enabledField = "noway"
-		v2_1ChartMapping[MeshConfigChart] = meshConfigChartDetails
-		telemetryCommonChartDetails := v2_1ChartMapping[TelemetryCommonChart]
-		telemetryCommonChartDetails.enabledField = "noway"
-		v2_1ChartMapping[TelemetryCommonChart] = telemetryCommonChartDetails
-	}
-}
-
-func (v *versionStrategyV2_1) checkAndSetupExternalControlPlaneConfig(externalProfileFound bool, log logr.Logger) {
-	if externalProfileFound {
-		log.Info("External Control Plane profile used. Disabling everything else, except the discovery Chart.")
-		meshConfigChartDetails := v2_1ChartMapping[MeshConfigChart]
-		meshConfigChartDetails.enabledField = "noway"
-		v2_1ChartMapping[MeshConfigChart] = meshConfigChartDetails
-		telemetryCommonChartDetails := v2_1ChartMapping[TelemetryCommonChart]
-		telemetryCommonChartDetails.enabledField = "noway"
-		v2_1ChartMapping[TelemetryCommonChart] = telemetryCommonChartDetails
-		gatewayEgressChartDetails := v2_1ChartMapping[GatewayEgressChart]
-		gatewayEgressChartDetails.enabledField = "noway"
-		v2_1ChartMapping[GatewayEgressChart] = gatewayEgressChartDetails
-		gatewayInressChartDetails := v2_1ChartMapping[GatewayIngressChart]
-		gatewayInressChartDetails.enabledField = "noway"
-		v2_1ChartMapping[GatewayIngressChart] = gatewayInressChartDetails
-	}
 }
 
 // TODO: consider consolidating this with 2.0 rendering logic
@@ -357,12 +319,6 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 		}
 	}
 
-	// Remote Data Plane check and setup if so
-	v.checkAndSetupRemoteDataPlaneConfig(spec.Istio, log)
-
-	// External Control Plane check and setup if so
-	v.checkAndSetupExternalControlPlaneConfig(externalProfileFound, log)
-
 	// convert back to the v2 type
 	smcp.Status.AppliedSpec = v2.ControlPlaneSpec{}
 	err = cr.Scheme.Convert(&smcp.Status.AppliedValues, &smcp.Status.AppliedSpec, nil)
@@ -395,7 +351,8 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 		if specialCharts.Has(name) {
 			continue
 		}
-		if chartDetails.enabledField == "" || isComponentEnabled(spec.Istio, chartDetails.enabledField) {
+
+		if isComponentEnabled(spec.Istio, chartDetails.enabledField) {
 			log.V(2).Info(fmt.Sprintf("rendering %s chart", name))
 			if chartRenderings, _, err := helm.RenderChart(path.Join(v.GetChartsDir(), v2_1ChartMapping[name].path), smcp.GetNamespace(), values); err == nil {
 				renderings[name] = chartRenderings[name]
