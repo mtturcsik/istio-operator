@@ -3,6 +3,7 @@ package webhookca
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -232,6 +233,14 @@ type reconciler struct {
 // from the respective Istio SA secret or CA Bundle config map
 func (r *reconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	logger := createLogger().WithValues("WebhookConfig", request.NamespacedName.String())
+
+	// If webhookmanagement is disabled, we do not want the CABUNDLE to be updated in the Reconcile loop
+	var webhookManagementDisabled = os.Getenv("OSDK_DISABLE_WEBHOOK_MANAGEMENT")
+	if webhookManagementDisabled == "true" {
+		logger.Info("WEBHOOK MANAGEMENT DISABLED IN RECONCILE LOOP")
+		return reconcile.Result{}, nil
+	}
+
 	logger.Info("reconciling WebhookConfiguration")
 	ctx := common.NewReconcileContext(logger)
 	return reconcile.Result{}, r.webhookCABundleManager.UpdateCABundle(ctx, r.Client, request.NamespacedName)
