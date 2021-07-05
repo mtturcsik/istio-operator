@@ -1,6 +1,8 @@
 package webhooks
 
 import (
+	"os"
+
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -33,9 +35,15 @@ func Add(mgr manager.Manager) error {
 	ctx := common.NewContextWithLog(common.NewContext(), log)
 	log.Info("Configuring Maistra webhooks")
 
-	operatorNamespace := common.GetOperatorNamespace()
-	if err := createWebhookResources(ctx, mgr, log, operatorNamespace); err != nil {
-		return err
+	var webhookManagementDisabled = os.Getenv("OSDK_DISABLE_WEBHOOK_MANAGEMENT")
+	if webhookManagementDisabled == "true" {
+		log.Info("Webhook Resource Management is disabled via configuration")
+		//return nil
+	} else {
+		operatorNamespace := common.GetOperatorNamespace()
+		if err := createWebhookResources(ctx, mgr, log, operatorNamespace); err != nil {
+			return err
+		}
 	}
 
 	watchNamespaceStr, err := k8sutil.GetWatchNamespace()
