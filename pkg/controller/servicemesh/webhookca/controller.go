@@ -3,7 +3,6 @@ package webhookca
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -60,10 +59,8 @@ var autoRegistrationMap = map[string]CABundleSource{
 // Add creates a new Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	// If webhookmanagement is disabled, we do not want the CABUNDLE to be updated in the Reconcile loop
-	var webhookManagementDisabled = os.Getenv("OSDK_DISABLE_WEBHOOK_MANAGEMENT")
-	if webhookManagementDisabled == "true" {
-		createLogger().Info("WEBHOOK MANAGEMENT DISABLED, not adding to watch list...")
+	if common.Config.OLM.WebhookManagementDisabled == true {
+		createLogger().Info("Webhook Config Management is disabled via olm configuration, not adding webhookca to watch list...")
 		return nil
 	}
 
