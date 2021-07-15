@@ -24,6 +24,7 @@ type olm struct {
 	Images                    images `json:"relatedImage,omitempty"`
 	CNIDisabled               bool   `json:"cniEnabled,omitempty"`
 	WebhookManagementDisabled bool   `json:"webhookManagementDisabled,omitempty"`
+	SplitModeEnabled          bool   `json:"splitModeEnabled,omitempty"`
 }
 
 // Images for various versions
