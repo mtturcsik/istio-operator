@@ -261,9 +261,7 @@ func (r *controlPlaneInstanceReconciler) Reconcile(ctx context.Context) (result 
 			component := componentFromChartName(chart)
 			var hasReadiness bool
 
-			isExternalProfileActive := version.Strategy().IsExternalProfileActive()
-
-			hasReadiness, err = r.processComponentManifests(ctx, chart, isExternalProfileActive)
+			hasReadiness, err = r.processComponentManifests(ctx, chart, common.Config.OLM.SplitModeEnabled)
 
 			if err != nil {
 				reconciliationReason = status.ConditionReasonReconcileError

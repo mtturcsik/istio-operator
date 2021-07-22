@@ -84,7 +84,7 @@ var (
 	}
 )
 
-func (r *controlPlaneInstanceReconciler) prune(ctx context.Context, generation string, isExternalProfileActive bool) error {
+func (r *controlPlaneInstanceReconciler) prune(ctx context.Context, generation string, isSplitModeEnabled bool) error {
 	allErrors := []error{}
 
 	// LOCAL STUFF
@@ -101,7 +101,7 @@ func (r *controlPlaneInstanceReconciler) prune(ctx context.Context, generation s
 		allErrors = append(allErrors, err)
 	}
 
-	if isExternalProfileActive {
+	if isSplitModeEnabled {
 		// EXTERNAL STUFF
 		err := r.pruneResources(ctx, namespacedResources, generation, r.Instance.Namespace, r.controlPlaneSecondaryKubeClient)
 		if err != nil {

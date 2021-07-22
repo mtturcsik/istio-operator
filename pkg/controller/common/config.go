@@ -23,6 +23,7 @@ type config struct {
 type olm struct {
 	Images      images `json:"relatedImage,omitempty"`
 	CNIDisabled bool   `json:"cniEnabled,omitempty"`
+	SplitModeEnabled bool `json:"splitModeEnabled,omitempty"`
 }
 
 // Images for various versions

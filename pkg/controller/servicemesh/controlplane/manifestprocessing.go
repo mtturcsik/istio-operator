@@ -6,7 +6,7 @@ import (
 	"github.com/maistra/istio-operator/pkg/controller/common/helm"
 )
 
-func (r *controlPlaneInstanceReconciler) processComponentManifests(ctx context.Context, chartName string, isExternalProfileActive bool) (hasReadiness bool, err error) {
+func (r *controlPlaneInstanceReconciler) processComponentManifests(ctx context.Context, chartName string, isSplitModeEnabled bool) (hasReadiness bool, err error) {
 	componentName := componentFromChartName(chartName)
 	log := common.LogFromContext(ctx).WithValues("Component", componentName)
 	ctx = common.NewContextWithLog(ctx, log)
@@ -29,10 +29,8 @@ func (r *controlPlaneInstanceReconciler) processComponentManifests(ctx context.C
 
 	var mp *helm.ManifestProcessor
 
-	if isExternalProfileActive {
-		if chartName == "telemetry-common" || chartName == "istio-discovery" {
-			mp = helm.NewManifestProcessor(tmpCR, helm.NewPatchFactory(r.controlPlaneSecondaryKubeClient), r.Instance.GetNamespace(), r.meshGeneration, r.Instance.GetNamespace(), r.preprocessObject, r.processNewObject)
-		}
+	if isSplitModeEnabled {
+		mp = helm.NewManifestProcessor(tmpCR, helm.NewPatchFactory(r.controlPlaneSecondaryKubeClient), r.Instance.GetNamespace(), r.meshGeneration, r.Instance.GetNamespace(), r.preprocessObject, r.processNewObject)
 	} else {
 		mp = helm.NewManifestProcessor(r.ControllerResources, helm.NewPatchFactory(r.Client), r.Instance.GetNamespace(), r.meshGeneration, r.Instance.GetNamespace(), r.preprocessObject, r.processNewObject)
 	}
