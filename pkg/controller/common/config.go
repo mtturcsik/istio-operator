@@ -123,6 +123,10 @@ type controller struct {
 
 	// Then maximum rate of API requests when throttling is active
 	APIQPS float32 `json:"apiQPS,omitempty"`
+
+	// If set to false, the controller does not create and manage webhookconfigurations by itself.
+	// Defaults to 'true'
+	WebhookManagementEnabled bool `json:"webhookManagementEnabled,omitempty"`
 }
 
 // NewViper returns a new viper.Viper configured with all the common.Config keys
