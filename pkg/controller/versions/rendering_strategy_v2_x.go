@@ -17,6 +17,7 @@ const (
 	TracingChart         = "tracing"
 	WASMExtensionsChart  = "wasm-extensions"
 	RemoteChart          = "istiod-remote"
+	RLSChart             = "rls"
 
 	// Event reasons
 	eventReasonRendering = "Rendering"
