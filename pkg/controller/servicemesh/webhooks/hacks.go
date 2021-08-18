@@ -1,8 +1,16 @@
 package webhooks
 
 import (
+	"bytes"
 	"context"
+	cryptorand "crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
+	"io/ioutil"
+	"math/big"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -25,6 +33,7 @@ import (
 	maistrav2 "github.com/maistra/istio-operator/pkg/apis/maistra/v2"
 	"github.com/maistra/istio-operator/pkg/controller/common"
 	"github.com/maistra/istio-operator/pkg/controller/servicemesh/webhookca"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 )
 
 // XXX: this entire file can be removed once ValidatingWebhookConfiguration and
@@ -37,6 +46,10 @@ const (
 	webhookConfigMapName = "maistra-operator-cabundle"
 	webhookServiceName   = "maistra-admission-controller"
 )
+
+func retStr(inStr string) *string {
+	return &inStr
+}
 
 func createWebhookResources(ctx context.Context, mgr manager.Manager, log logr.Logger, operatorNamespace string) error {
 	cl, err := client.New(mgr.GetConfig(), client.Options{Scheme: mgr.GetScheme()})
@@ -59,6 +72,24 @@ func createWebhookResources(ctx context.Context, mgr manager.Manager, log logr.L
 			log.Info("Maistra webhook CA bundle ConfigMap already exists")
 		} else {
 			return pkgerrors.Wrap(err, "error creating Maistra webhook CA bundle ConfigMap")
+		}
+	}
+
+	log.Info("Creating Maistra secret")
+	if err := cl.Create(context.TODO(), newMaistraServingCertSecret(operatorNamespace)); err != nil {
+		if errors.IsAlreadyExists(err) {
+			log.Info("Maistra secret already exists")
+		} else {
+			return pkgerrors.Wrap(err, "error creating Maistra secret")
+		}
+	}
+
+	log.Info("Creating Maistra webhook IngressResource")
+	if err := cl.Create(context.TODO(), newIngressResource(operatorNamespace)); err != nil {
+		if errors.IsAlreadyExists(err) {
+			log.Info("Maistra webhook CA bundle ConfigMap already exists")
+		} else {
+			return pkgerrors.Wrap(err, "error creating Creating Maistra webhook IngressResource")
 		}
 	}
 
@@ -131,12 +162,7 @@ func createWebhookResources(ctx context.Context, mgr manager.Manager, log logr.L
 					Webhook: &apixv1.WebhookConversion{
 						ConversionReviewVersions: []string{"v1beta1"},
 						ClientConfig: &apixv1.WebhookClientConfig{
-							URL: nil,
-							Service: &apixv1.ServiceReference{
-								Name:      webhookServiceName,
-								Namespace: operatorNamespace,
-								Path:      &smcpConverterServicePath,
-							},
+							URL: retStr("https://operator.s6662a7df5619be4d9c83-a383e1dc466c308d41a756a1a66c2b6a-ce00.us-south.satellite.test.appdomain.cloud/convert-smcp"),
 						},
 					},
 				},
@@ -207,6 +233,162 @@ func createWebhookResources(ctx context.Context, mgr manager.Manager, log logr.L
 	return nil
 }
 
+func ptrPathType(p networkingv1beta1.PathType) *networkingv1beta1.PathType {
+	return &p
+}
+
+func generateRSAKeyPair() (privKeyPem string, certPem string) {
+	var caPEM, serverCertPEM, serverPrivKeyPEM *bytes.Buffer
+	// CA config
+	ca := &x509.Certificate{
+		SerialNumber: big.NewInt(2020),
+		Subject: pkix.Name{
+			Organization: []string{"ibm.com"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+
+	// CA private key
+	caPrivKey, err := rsa.GenerateKey(cryptorand.Reader, 4096)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Self signed CA certificate
+	caBytes, err := x509.CreateCertificate(cryptorand.Reader, ca, ca, &caPrivKey.PublicKey, caPrivKey)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// PEM encode CA cert
+	caPEM = new(bytes.Buffer)
+	_ = pem.Encode(caPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caBytes,
+	})
+
+	dnsNames := []string{"webhook-service",
+		"webhook-service.default", "webhook-service.default.svc"}
+	commonName := "webhook-service.default.svc"
+
+	// server cert config
+	cert := &x509.Certificate{
+		DNSNames:     dnsNames,
+		SerialNumber: big.NewInt(1658),
+		Subject: pkix.Name{
+			CommonName:   commonName,
+			Organization: []string{"ibm.com"},
+		},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		SubjectKeyId: []byte{1, 2, 3, 4, 6},
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+
+	// server private key
+	serverPrivKey, err := rsa.GenerateKey(cryptorand.Reader, 4096)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// sign the server cert
+	serverCertBytes, err := x509.CreateCertificate(cryptorand.Reader, cert, ca, &serverPrivKey.PublicKey, caPrivKey)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// PEM encode the  server cert and key
+	serverCertPEM = new(bytes.Buffer)
+	_ = pem.Encode(serverCertPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: serverCertBytes,
+	})
+
+	serverPrivKeyPEM = new(bytes.Buffer)
+	_ = pem.Encode(serverPrivKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(serverPrivKey),
+	})
+	certPem = serverCertPEM.String()
+	privKeyPem = serverPrivKeyPEM.String()
+	return
+}
+
+func newMaistraServingCertSecret(namespace string) *corev1.Secret {
+	privkey, cert := generateRSAKeyPair()
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "maistra-operator-serving-cert",
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			"tls.crt": cert,
+			"tls.key": privkey,
+		},
+		Type: corev1.SecretType("kubernetes.io/tls"),
+	}
+}
+
+func newIngressResource(namespace string) *networkingv1beta1.Ingress {
+	return &networkingv1beta1.Ingress{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Ingress",
+			APIVersion: "networking.k8s.io/v1beta1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "istio-operator-webhook",
+			Namespace: namespace,
+			Annotations: map[string]string{
+				"kubernetes.io/ingress.class":                  "public-iks-k8s-nginx",
+				"nginx.ingress.kubernetes.io/backend-protocol": "HTTPS",
+			},
+		},
+
+		Spec: networkingv1beta1.IngressSpec{
+			TLS: []networkingv1beta1.IngressTLS{
+				networkingv1beta1.IngressTLS{
+					Hosts: []string{
+						"operator.s6662a7df5619be4d9c83-a383e1dc466c308d41a756a1a66c2b6a-ce00.us-south.satellite.test.appdomain.cloud",
+					},
+					SecretName: "s6662a7df5619be4d9c83-a383e1dc466c308d41a756a1a66c2b6a-ce00",
+				},
+			},
+			Rules: []networkingv1beta1.IngressRule{
+				networkingv1beta1.IngressRule{
+					Host: "operator.s6662a7df5619be4d9c83-a383e1dc466c308d41a756a1a66c2b6a-ce00.us-south.satellite.test.appdomain.cloud",
+					IngressRuleValue: networkingv1beta1.IngressRuleValue{
+						HTTP: &networkingv1beta1.HTTPIngressRuleValue{
+							Paths: []networkingv1beta1.HTTPIngressPath{
+								networkingv1beta1.HTTPIngressPath{
+									Path:     "/",
+									PathType: ptrPathType("Prefix"),
+									Backend: networkingv1beta1.IngressBackend{
+										ServicePort: intstr.IntOrString{
+											Type:   intstr.Type(0),
+											IntVal: 443,
+										},
+										ServiceName: "maistra-admission-controller",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func newWebhookService(namespace string) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -232,6 +414,11 @@ func newWebhookService(namespace string) *corev1.Service {
 }
 
 func newCABundleConfigMap(namespace string) *corev1.ConfigMap {
+	ret, error := ioutil.ReadFile("/root/lets_cert.pem")
+	if error != nil {
+		fmt.Printf("dfjkdsf")
+	}
+	CAstring := string(ret)
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      webhookConfigMapName,
@@ -239,6 +426,9 @@ func newCABundleConfigMap(namespace string) *corev1.ConfigMap {
 			Annotations: map[string]string{
 				"service.beta.openshift.io/inject-cabundle": "true",
 			},
+		},
+		Data: map[string]string{
+			"service-ca.crt": CAstring,
 		},
 	}
 }
@@ -262,11 +452,7 @@ func newValidatingWebhookConfiguration(namespace string) *admissionv1.Validating
 				SideEffects:             &noneSideEffects,
 				AdmissionReviewVersions: []string{"v1beta1"},
 				ClientConfig: admissionv1.WebhookClientConfig{
-					Service: &admissionv1.ServiceReference{
-						Path:      &smcpValidatorServicePath,
-						Name:      webhookServiceName,
-						Namespace: namespace,
-					},
+					URL: retStr("https://operator.s6662a7df5619be4d9c83-a383e1dc466c308d41a756a1a66c2b6a-ce00.us-south.satellite.test.appdomain.cloud/validate-smcp"),
 				},
 			},
 			{
@@ -277,11 +463,7 @@ func newValidatingWebhookConfiguration(namespace string) *admissionv1.Validating
 				SideEffects:             &noneSideEffects,
 				AdmissionReviewVersions: []string{"v1beta1"},
 				ClientConfig: admissionv1.WebhookClientConfig{
-					Service: &admissionv1.ServiceReference{
-						Path:      &smmrValidatorServicePath,
-						Name:      webhookServiceName,
-						Namespace: namespace,
-					},
+					URL: retStr("https://operator.s6662a7df5619be4d9c83-a383e1dc466c308d41a756a1a66c2b6a-ce00.us-south.satellite.test.appdomain.cloud/validate-smmr"),
 				},
 			},
 			{
@@ -292,11 +474,7 @@ func newValidatingWebhookConfiguration(namespace string) *admissionv1.Validating
 				SideEffects:             &noneSideEffects,
 				AdmissionReviewVersions: []string{"v1beta1"},
 				ClientConfig: admissionv1.WebhookClientConfig{
-					Service: &admissionv1.ServiceReference{
-						Path:      &smmValidatorServicePath,
-						Name:      webhookServiceName,
-						Namespace: namespace,
-					},
+					URL: retStr("https://operator.s6662a7df5619be4d9c83-a383e1dc466c308d41a756a1a66c2b6a-ce00.us-south.satellite.test.appdomain.cloud/validate-smm"),
 				},
 			},
 		},
@@ -322,11 +500,7 @@ func newMutatingWebhookConfiguration(namespace string) *admissionv1.MutatingWebh
 				SideEffects:             &noneOnDryRunSideEffects,
 				AdmissionReviewVersions: []string{"v1beta1"},
 				ClientConfig: admissionv1.WebhookClientConfig{
-					Service: &admissionv1.ServiceReference{
-						Path:      &smcpMutatorServicePath,
-						Name:      webhookServiceName,
-						Namespace: namespace,
-					},
+					URL: retStr("https://operator.s6662a7df5619be4d9c83-a383e1dc466c308d41a756a1a66c2b6a-ce00.us-south.satellite.test.appdomain.cloud/mutate-smcp"),
 				},
 			},
 			{
@@ -337,11 +511,7 @@ func newMutatingWebhookConfiguration(namespace string) *admissionv1.MutatingWebh
 				SideEffects:             &noneOnDryRunSideEffects,
 				AdmissionReviewVersions: []string{"v1beta1"},
 				ClientConfig: admissionv1.WebhookClientConfig{
-					Service: &admissionv1.ServiceReference{
-						Path:      &smmrMutatorServicePath,
-						Name:      webhookServiceName,
-						Namespace: namespace,
-					},
+					URL: retStr("https://operator.s6662a7df5619be4d9c83-a383e1dc466c308d41a756a1a66c2b6a-ce00.us-south.satellite.test.appdomain.cloud/mutate-smmr"),
 				},
 			},
 		},

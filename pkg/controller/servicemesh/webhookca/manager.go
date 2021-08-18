@@ -48,6 +48,7 @@ func (wm *webhookCABundleManager) ManageWebhookCABundle(obj runtime.Object, sour
 	if err != nil {
 		return err
 	}
+	tmp := source.GetNamespace()
 	source.SetNamespace("")
 	for _, clientConfig := range webhook.ClientConfigs() {
 		if clientConfig.Service == nil {
@@ -58,6 +59,7 @@ func (wm *webhookCABundleManager) ManageWebhookCABundle(obj runtime.Object, sour
 		}
 		source.SetNamespace(clientConfig.Service.Namespace)
 	}
+	source.SetNamespace(tmp)
 	if source.GetNamespace() == "" {
 		return fmt.Errorf("no clients to configure in webhook: %s", webhook.MetaObject().GetName())
 	}

@@ -53,6 +53,10 @@ func (mw *conversionWebhookWrapper) NamespacedName() types.NamespacedName {
 	return types.NamespacedName{Namespace: conversionNamespaceValue, Name: mw.GetName()}
 }
 
+//func retStr(inStr string) *string {
+//	return &inStr
+//}
+
 func (mw *conversionWebhookWrapper) ClientConfigs() []*v1.WebhookClientConfig {
 	// This helps with testing
 	if mw.Spec.Conversion == nil || mw.Spec.Conversion.Strategy != apixv1.WebhookConverter || mw.Spec.Conversion.Webhook == nil || mw.Spec.Conversion.Webhook.ClientConfig == nil {
@@ -60,11 +64,7 @@ func (mw *conversionWebhookWrapper) ClientConfigs() []*v1.WebhookClientConfig {
 	}
 	return []*v1.WebhookClientConfig{
 		{
-			Service: &v1.ServiceReference{
-				Name:      mw.Spec.Conversion.Webhook.ClientConfig.Service.Name,
-				Namespace: mw.Spec.Conversion.Webhook.ClientConfig.Service.Namespace,
-				Path:      mw.Spec.Conversion.Webhook.ClientConfig.Service.Path,
-			},
+			//URL:      retStr("https://operator.s6662a7df5619be4d9c83-a383e1dc466c308d41a756a1a66c2b6a-ce00.us-south.satellite.test.appdomain.cloud/convert-smcp"),
 			CABundle: mw.Spec.Conversion.Webhook.ClientConfig.CABundle,
 		},
 	}
