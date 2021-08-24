@@ -42,7 +42,7 @@ var (
 		},
 		TelemetryCommonChart: {
 			path:         "istio-telemetry/telemetry-common",
-			enabledField: "telemetryCommon",
+			enabledField: "telemetry.common",
 		},
 		PrometheusChart: {
 			path:         "istio-telemetry/prometheus",
@@ -224,6 +224,19 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 		return nil, fmt.Errorf("Could not set field status.lastAppliedConfiguration.istio.istio_cni.istio_cni_network: %v", err)
 	}
 
+	if smcp.Spec.ControlPlaneMode != nil {
+		err = spec.Istio.SetField("istioDiscovery.enabled",  smcp.Spec.ControlPlaneMode.ControlPlaneModeEnabled)
+	} else {
+		err = spec.Istio.SetField("istioDiscovery.enabled",  true)
+	}
+
+	if smcp.Spec.Telemetry != nil {
+		err = spec.Istio.SetField("telemetry.common.enabled",  smcp.Spec.Telemetry.TelemetryEnabled)
+	} else {
+		err = spec.Istio.SetField("telemetry.common.enabled",  true)
+	}
+
+
 	// Override these globals to match the install namespace
 	err = spec.Istio.SetField("global.istioNamespace", smcp.GetNamespace())
 	if err != nil {
@@ -325,6 +338,7 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 	if err != nil {
 		return nil, fmt.Errorf("Unexpected error setting Status.AppliedSpec: %v", err)
 	}
+
 
 	// Read in global.yaml
 	values, err := chartutil.ReadValuesFile(path.Join(v.GetChartsDir(), "global.yaml"))

@@ -2,6 +2,8 @@ package v2
 
 // TelemetryConfig for the mesh
 type TelemetryConfig struct {
+	TelemetryEnabled bool `json:"enabled,omitempty"`
+
 	// Type of telemetry implementation to use.
 	Type TelemetryType `json:"type,omitempty"`
 	// Mixer represents legacy, v1 telemetry.

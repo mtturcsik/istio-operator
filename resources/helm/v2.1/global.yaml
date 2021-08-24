@@ -404,6 +404,9 @@ base:
 
 telemetry:
   enabled: true
+  common:
+    enabled: true
+
   v2:
     # For Null VM case now.
     # This also enables metadata exchange.

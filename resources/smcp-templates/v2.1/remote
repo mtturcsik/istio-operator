@@ -25,10 +25,6 @@ spec:
     identity:
       type: Kubernetes
 
-  telemetry:
-    enabled: false
-    type: Istiod
-
   policy:
     enabled: false
     type: None

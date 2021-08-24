@@ -162,6 +162,8 @@ type ControlPlaneSpec struct {
 	// TechPreview contains switches for features that are not GA yet.
 	// +optional
 	TechPreview *v1.HelmValues `json:"techPreview,omitempty"`
+
+	ControlPlaneMode *ControlPlaneModeConfig `json:"controlPlaneMode,omitempty""`
 }
 
 // Enablement is a common definition for features that can be enabled
