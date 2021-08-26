@@ -34,11 +34,11 @@ var (
 		},
 		GatewayIngressChart: {
 			path:         "gateways/istio-ingress",
-			enabledField: "gatewayIngress",
+			enabledField: "",
 		},
 		GatewayEgressChart: {
 			path:         "gateways/istio-egress",
-			enabledField: "gatewayEgress",
+			enabledField: "",
 		},
 		TelemetryCommonChart: {
 			path:         "istio-telemetry/telemetry-common",
@@ -236,6 +236,11 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 		err = spec.Istio.SetField("telemetry.common.enabled",  true)
 	}
 
+	if smcp.Spec.RemoteMode != nil {
+		err = spec.Istio.SetField("remote.enabled", smcp.Spec.RemoteMode.RemoteModeEnabled)
+	} else {
+		err = spec.Istio.SetField("remote.enabled",  false)
+	}
 
 	// Override these globals to match the install namespace
 	err = spec.Istio.SetField("global.istioNamespace", smcp.GetNamespace())

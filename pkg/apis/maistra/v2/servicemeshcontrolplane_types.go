@@ -155,6 +155,11 @@ type ControlPlaneSpec struct {
 	// Runtime configuration for pilot (and galley, etc., pre 2.0)
 	// +optional
 	Runtime *ControlPlaneRuntimeConfig `json:"runtime,omitempty"`
+
+
+	ControlPlaneMode *ControlPlaneModeConfig `json:"controlPlaneMode,omitempty""`
+	RemoteMode *RemoteModeConfig `json:"remoteMode,omitempty"`
+
 	// Addons is used to configure additional features beyond core control plane
 	// components, e.g. visualization, metric storage, etc.
 	// +optional
@@ -162,8 +167,6 @@ type ControlPlaneSpec struct {
 	// TechPreview contains switches for features that are not GA yet.
 	// +optional
 	TechPreview *v1.HelmValues `json:"techPreview,omitempty"`
-
-	ControlPlaneMode *ControlPlaneModeConfig `json:"controlPlaneMode,omitempty""`
 }
 
 // Enablement is a common definition for features that can be enabled
