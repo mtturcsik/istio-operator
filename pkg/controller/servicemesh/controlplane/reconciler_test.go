@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maistra/istio-operator/pkg/controller/hacks"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -22,6 +23,7 @@ import (
 	"github.com/maistra/istio-operator/pkg/apis/maistra/status"
 	maistrav1 "github.com/maistra/istio-operator/pkg/apis/maistra/v1"
 	maistrav2 "github.com/maistra/istio-operator/pkg/apis/maistra/v2"
+	v2 "github.com/maistra/istio-operator/pkg/apis/maistra/v2"
 	"github.com/maistra/istio-operator/pkg/controller/common"
 	"github.com/maistra/istio-operator/pkg/controller/common/cni"
 	"github.com/maistra/istio-operator/pkg/controller/common/test"
@@ -192,8 +194,8 @@ func TestManifestValidation(t *testing.T) {
 			errorMessages: map[versions.Version]string{
 				versions.V1_0: "namespace of manifest b/another-ingress not in mesh",
 				versions.V1_1: "namespace of manifest b/another-ingress not in mesh",
-				versions.V2_0: "Spec is invalid: error: [namespace \"b\" for ingress gateway \"another-ingress\" must be part of the mesh, namespace \"d\" for ingress gateway \"another-egress\" must be part of the mesh]",
-				versions.V2_1: "Spec is invalid: error: [namespace \"b\" for ingress gateway \"another-ingress\" must be part of the mesh, namespace \"d\" for ingress gateway \"another-egress\" must be part of the mesh]",
+				versions.V2_0: "Spec is invalid: error: [namespace \"b\" for gateway \"another-ingress\" is not configured as a mesh member, namespace \"d\" for gateway \"another-egress\" is not configured as a mesh member]",
+				versions.V2_1: "Spec is invalid: error: [namespace \"b\" for gateway \"another-ingress\" is not configured as a mesh member, namespace \"d\" for gateway \"another-egress\" is not configured as a mesh member]",
 			},
 		},
 		{
@@ -300,7 +302,7 @@ func TestManifestValidation(t *testing.T) {
 					tc.setupFn(cl, tracker)
 				}
 				// run initial reconcile to update the SMCP status
-				_, err := r.Reconcile(ctx)
+				_, err := r.Reconcile(hacks.WrapContext(ctx, map[types.NamespacedName]time.Time{}))
 
 				expectedErrorMessage := tc.errorMessages[version]
 				if expectedErrorMessage == "" {
@@ -328,7 +330,7 @@ func TestManifestValidation(t *testing.T) {
 }
 
 func assertInstanceReconcilerFails(r ControlPlaneInstanceReconciler, t *testing.T) {
-	_, err := r.Reconcile(ctx)
+	_, err := r.Reconcile(hacks.WrapContext(ctx, map[types.NamespacedName]time.Time{}))
 	if err == nil {
 		t.Fatal("Expected reconcile to fail, but it didn't")
 	}
@@ -372,8 +374,10 @@ func TestParallelInstallationOfCharts(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			disabled := false
-			enabled := true
+			falseVal := false
+			trueVal := true
+			disabled := maistrav2.Enablement{Enabled: &falseVal}
+			enabled := maistrav2.Enablement{Enabled: &trueVal}
 			smcp := newControlPlane()
 			smcp.Spec = maistrav2.ControlPlaneSpec{
 				Profiles: []string{"maistra"},
@@ -388,27 +392,27 @@ func TestParallelInstallationOfCharts(t *testing.T) {
 					ClusterIngress: &maistrav2.ClusterIngressGatewayConfig{
 						IngressGatewayConfig: maistrav2.IngressGatewayConfig{
 							GatewayConfig: maistrav2.GatewayConfig{
-								Enablement: maistrav2.Enablement{Enabled: &disabled},
+								Enablement: disabled,
 							},
 						},
 					},
 					ClusterEgress: &maistrav2.EgressGatewayConfig{
 						GatewayConfig: maistrav2.GatewayConfig{
-							Enablement: maistrav2.Enablement{Enabled: &disabled},
+							Enablement: disabled,
 						},
 					},
 				},
 				Tracing: &maistrav2.TracingConfig{Type: maistrav2.TracerTypeNone},
 				Addons: &maistrav2.AddonsConfig{
 					Prometheus: &maistrav2.PrometheusAddonConfig{
-						Enablement: maistrav2.Enablement{Enabled: &disabled},
+						Enablement: disabled,
 					},
 					Grafana: &maistrav2.GrafanaAddonConfig{
-						Enablement: maistrav2.Enablement{Enabled: &enabled},
+						Enablement: enabled,
 						Install:    &maistrav2.GrafanaInstallConfig{},
 					},
 					Kiali: &maistrav2.KialiAddonConfig{
-						Enablement: maistrav2.Enablement{Enabled: &disabled},
+						Enablement: disabled,
 					},
 				},
 			}
@@ -429,8 +433,7 @@ func TestParallelInstallationOfCharts(t *testing.T) {
 
 				if tc.expectFirstReconcileToFail {
 					// first reconcile should fail
-					_, err := r.Reconcile(ctx)
-					assert.Failure(err, "Reconcile", t)
+					assertInstanceReconcilerFails(r, t)
 				} else {
 					assertInstanceReconcilerSucceeds(r, t)
 				}
@@ -440,6 +443,10 @@ func TestParallelInstallationOfCharts(t *testing.T) {
 			}
 
 			// this reconcile must succeed
+			assertInstanceReconcilerSucceeds(r, t)
+
+			// the previous reconcile won't calculate readiness in order to wait for the cache to sync.
+			// readiness is calculated in the next reconcile attempt, so let's invoke it
 			assertInstanceReconcilerSucceeds(r, t)
 
 			// check that both galley and citadel deployments have been created
@@ -459,6 +466,11 @@ func TestParallelInstallationOfCharts(t *testing.T) {
 
 			// run reconcile again to see if the Reconciled condition is updated
 			assertInstanceReconcilerSucceeds(r, t)
+
+			// the previous reconcile won't calculate readiness in order to wait for the cache to sync.
+			// readiness is calculated in the next reconcile attempt, so let's invoke it
+			assertInstanceReconcilerSucceeds(r, t)
+
 			assertDeploymentExists(cl, "grafana", t)
 			assertReconciledConditionMatches(cl, smcp, status.ConditionReasonPausingInstall, "[grafana]", t)
 		})
@@ -508,11 +520,39 @@ func TestValidation(t *testing.T) {
 			spec: maistrav2.ControlPlaneSpec{
 				Version:  versions.V1_1.String(),
 				Profiles: []string{"maistra"},
-				TechPreview:maistrav1.NewHelmValues(map[string]interface{}{
+				TechPreview: maistrav1.NewHelmValues(map[string]interface{}{
 					"errored": map[string]interface{}{
 						"message": "spec in v1 SMCP was bad",
 					},
 				}),
+			},
+			expectValid: false,
+		},
+		{
+			name: "invalid rls storage backend",
+			spec: maistrav2.ControlPlaneSpec{
+				Version:  versions.V2_1.String(),
+				Profiles: []string{"maistra"},
+				TechPreview: maistrav1.NewHelmValues(map[string]interface{}{
+					"rateLimiting": map[string]interface{}{
+						"rls": map[string]interface{}{
+							"enabled":        true,
+							"storageBackend": "xyz",
+							"storageAddress": "1.2.3.4:1234",
+						},
+					},
+				}),
+			},
+			expectValid: false,
+		},
+		{
+			name: "v2.1 control plane with mixer",
+			spec: maistrav2.ControlPlaneSpec{
+				Version:  versions.V2_1.String(),
+				Profiles: []string{"maistra"},
+				Policy: &maistrav2.PolicyConfig{
+					Type: v2.PolicyTypeMixer,
+				},
 			},
 			expectValid: false,
 		},
@@ -541,6 +581,46 @@ func TestValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// tests if the reconciler adds the necessary labels to the SMCP namespace when
+// it first reconciles the SMCP and also removes them when the SMCP is deleted
+func TestNamespaceLabels(t *testing.T) {
+	smcp := newControlPlane()
+	smcp.Spec = maistrav2.ControlPlaneSpec{
+		Version:  versions.V2_0.String(),
+		Profiles: []string{"maistra"},
+	}
+
+	cl, _, r := newReconcilerTestFixture(smcp)
+
+	// 1. run Reconcile() to add labels
+	assertInstanceReconcilerSucceeds(r, t) // this only initializes the SMCP status
+	assertInstanceReconcilerSucceeds(r, t) // this does the actual work
+
+	ns := &corev1.Namespace{}
+	test.GetObject(ctx, cl, types.NamespacedName{"", controlPlaneNamespace}, ns)
+	assert.DeepEquals(ns.Labels, map[string]string{
+		common.IgnoreNamespaceKey: "ignore",
+		common.MemberOfKey:        controlPlaneNamespace,
+	}, "Expected reconciler to add namespace labels", t)
+
+	test.PanicOnError(cl.Get(ctx, types.NamespacedName{Namespace: controlPlaneNamespace, Name: controlPlaneName}, smcp))
+	smcp.DeletionTimestamp = &oneMinuteAgo
+	test.PanicOnError(cl.Update(ctx, smcp))
+
+	// 2. run Delete() to remove labels
+	assertDeleteSucceeds(r, t) // this only initializes the SMCP status
+	assertDeleteSucceeds(r, t) // this does the actual work
+
+	ns = &corev1.Namespace{}
+	test.GetObject(ctx, cl, types.NamespacedName{"", controlPlaneNamespace}, ns)
+	assert.DeepEquals(ns.Labels, (map[string]string)(nil), "Namespace labels weren't removed", t)
+}
+
+func assertDeleteSucceeds(r ControlPlaneInstanceReconciler, t *testing.T) {
+	err := r.Delete(hacks.WrapContext(ctx, map[types.NamespacedName]time.Time{}))
+	assert.Success(err, "Delete", t)
 }
 
 func assertDeploymentExists(cl client.Client, name string, t *testing.T) *appsv1.Deployment {
@@ -581,7 +661,7 @@ func newReconcilerTestFixture(smcp *maistrav2.ServiceMeshControlPlane) (client.C
 
 func assertInstanceReconcilerSucceeds(r ControlPlaneInstanceReconciler, t *testing.T) {
 	t.Helper()
-	_, err := r.Reconcile(ctx)
+	_, err := r.Reconcile(hacks.WrapContext(ctx, map[types.NamespacedName]time.Time{}))
 	assert.Success(err, "Reconcile", t)
 }
 

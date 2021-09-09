@@ -5,11 +5,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	"github.com/magiconair/properties"
+	maistrav2 "github.com/maistra/istio-operator/pkg/apis/maistra/v2"
 	"github.com/mitchellh/mapstructure"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
@@ -56,7 +58,7 @@ func main() {
 	// number of concurrent reconciler for each controller
 	pflag.Int("controlPlaneReconcilers", 1, "The number of concurrent reconcilers for ServiceMeshControlPlane resources")
 	pflag.Int("memberRollReconcilers", 1, "The number of concurrent reconcilers for ServiceMeshMemberRoll resources")
-	pflag.Int("memberReconcilers", 1, "The number of concurrent reconcilers for ServiceMeshMember resources")
+	pflag.Int("memberReconcilers", 10, "The number of concurrent reconcilers for ServiceMeshMember resources")
 
 	// flags to configure API request throttling
 	pflag.Int("apiBurst", 50, "The number of API requests the operator can make before throttling is activated")
@@ -67,6 +69,9 @@ func main() {
 	pflag.String("chartsDir", "", "The root location of the helm charts.")
 	pflag.String("defaultTemplatesDir", "", "The root location of the default templates.")
 	pflag.String("userTemplatesDir", "", "The root location of the user supplied templates.")
+
+	var logAPIRequests bool
+	pflag.BoolVar(&logAPIRequests, "logAPIRequests", false, "Log API requests performed by the operator.")
 
 	// config file
 	configFile := ""
@@ -109,6 +114,15 @@ func main() {
 
 	cfg.Burst = common.Config.Controller.APIBurst
 	cfg.QPS = common.Config.Controller.APIQPS
+	log.Info("Client-side rate limiting configured", "cfg.Burst", cfg.Burst, "cfg.QPS", cfg.QPS)
+
+	if logAPIRequests {
+		cfg.Wrap(func(rt http.RoundTripper) http.RoundTripper {
+			return requestLogger{
+				rt: rt,
+			}
+		})
+	}
 
 	ctx := context.Background()
 	// Become the leader before proceeding
@@ -223,7 +237,7 @@ func serveCRMetrics(cfg *rest.Config, operatorNs string) error {
 	if err != nil {
 		return err
 	}
-	filteredV2GVK, err := k8sutil.GetGVKsFromAddToScheme(maistrav1.SchemeBuilder.AddToScheme)
+	filteredV2GVK, err := k8sutil.GetGVKsFromAddToScheme(maistrav2.SchemeBuilder.AddToScheme)
 	if err != nil {
 		return err
 	}
@@ -304,3 +318,15 @@ func patchProperties(file string) (map[string]interface{}, error) {
 	}
 	return retVal, nil
 }
+
+type requestLogger struct {
+	rt http.RoundTripper
+}
+
+func (rl requestLogger) RoundTrip(req *http.Request) (*http.Response, error) {
+	log := common.LogFromContext(req.Context())
+	log.Info("Performing API request", "method", req.Method, "URL", req.URL)
+	return rl.rt.RoundTrip(req)
+}
+
+var _ http.RoundTripper = requestLogger{}

@@ -33,7 +33,10 @@ spec:
           imagePullPolicy: IfNotPresent
       wasmExtensions.cacher:
         container:
-          image: pilot-ubi8
+          imageName: pilot-ubi8
+      rateLimiting.rls:
+        container:
+          imageName: ratelimit-ubi8
 
   proxy:
     runtime:

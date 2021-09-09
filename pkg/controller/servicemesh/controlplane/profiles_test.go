@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	PRODUCT_IMAGE_1_1   = "1.1.12"
-	PRODUCT_IMAGE_2_0   = "2.0.2"
-	COMMUNITY_IMAGE_2_0 = "2.0.2"
+	PRODUCT_IMAGE_1_1   = "1.1.17"
+	PRODUCT_IMAGE_2_0   = "2.0.7"
+	COMMUNITY_IMAGE_2_0 = "2.0.7"
 	COMMUNITY_IMAGE_2_1 = "2.1.0"
 	PRODUCT_IMAGE_2_1   = "2.1.0"
 )
@@ -118,10 +118,12 @@ func TestProfiles(t *testing.T) {
 				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNamePilot].Container.Image = "injected-pilot-v2.1"
 				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNamePrometheus].Container.Image = "injected-prometheus-v2.1"
 				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNameWASMCacher].Container.Image = "injected-wasm-cacher-v2.1"
+				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNameRateLimiting] = &v2.ComponentRuntimeConfig{Container: &v2.ContainerConfig{Image: "injected-rls-v2.1"}}
 				delete(smcp.Spec.Runtime.Components, v2.ControlPlaneComponentNameMixer)
 				delete(smcp.Spec.Runtime.Components, v2.ControlPlaneComponentNameMixerPolicy)
 				delete(smcp.Spec.Runtime.Components, v2.ControlPlaneComponentNameMixerTelemetry)
 				smcp.Spec.Runtime.Defaults.Container.ImageTag = COMMUNITY_IMAGE_2_1
+				smcp.Spec.TechPreview.RemoveField("wasmExtensions")
 			},
 		},
 		{
@@ -150,10 +152,43 @@ func TestProfiles(t *testing.T) {
 				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNamePilot].Container.Image = "injected-pilot-v2.1"
 				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNamePrometheus].Container.Image = "injected-prometheus-v2.1"
 				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNameWASMCacher].Container.Image = "injected-wasm-cacher-v2.1"
+				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNameRateLimiting] = &v2.ComponentRuntimeConfig{Container: &v2.ContainerConfig{Image: "injected-rls-v2.1"}}
 				delete(smcp.Spec.Runtime.Components, v2.ControlPlaneComponentNameMixer)
 				delete(smcp.Spec.Runtime.Components, v2.ControlPlaneComponentNameMixerPolicy)
 				delete(smcp.Spec.Runtime.Components, v2.ControlPlaneComponentNameMixerTelemetry)
 				smcp.Spec.Runtime.Defaults.Container.ImageTag = PRODUCT_IMAGE_2_1
+				smcp.Spec.TechPreview.RemoveField("wasmExtensions")
+			},
+		},
+		{
+			name: "MAISTRA-2409",
+			v:    versions.V2_0,
+			input: &v2.ServiceMeshControlPlane{
+				Spec: v2.ControlPlaneSpec{
+					Profiles: []string{"servicemesh"},
+					Proxy: &v2.ProxyConfig{
+						Runtime: &v2.ProxyRuntimeConfig{
+							Readiness: &v2.ProxyReadinessConfig{
+								RewriteApplicationProbes: true,
+							},
+						},
+					},
+				},
+			},
+			expected: &v2.ServiceMeshControlPlane{
+				Spec: v2_0_ExpectedSpec,
+			},
+			patchupExpected: func(smcp *v2.ServiceMeshControlPlane) {
+				// the only thing changing here should be image names/tags/registries
+				smcp.Spec.Proxy.Runtime.Readiness = &v2.ProxyReadinessConfig{RewriteApplicationProbes: true}
+				smcp.Spec.Runtime.Defaults.Container.ImageRegistry = "registry.redhat.io/openshift-service-mesh"
+				smcp.Spec.Runtime.Defaults.Container.ImageRegistry = "registry.redhat.io/openshift-service-mesh"
+				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNameThreeScale].Container.ImageRegistry = "registry.redhat.io/openshift-service-mesh"
+				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNameThreeScale].Container.ImageTag = "2.0.0"
+				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNameGlobalOauthProxy].Container.ImageRegistry = "registry.redhat.io/openshift4"
+				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNameGlobalOauthProxy].Container.Image = "ose-oauth-proxy"
+				smcp.Spec.Runtime.Components[v2.ControlPlaneComponentNameGlobalOauthProxy].Container.ImageTag = "v4.4"
+				smcp.Spec.Runtime.Defaults.Container.ImageTag = PRODUCT_IMAGE_2_0
 			},
 		},
 	}
@@ -193,6 +228,32 @@ func TestProfiles(t *testing.T) {
 			}
 			if diff := cmp.Diff(expected.Spec, appliedV2SMCP.Spec, cmp.AllowUnexported(v1.HelmValues{})); diff != "" {
 				t.Errorf("TestProfiles() case %s mismatch (-want +got):\n%s", tc.name, diff)
+			}
+		})
+	}
+}
+
+func TestMissingProfile(t *testing.T) {
+	smcp := &v2.ServiceMeshControlPlane{
+		Spec: v2.ControlPlaneSpec{
+			Profiles: []string{"missing-profile"},
+		},
+	}
+
+	testCR := &common.ControllerResources{
+		Scheme: test.GetScheme(),
+	}
+
+	v1smcp := &v1.ServiceMeshControlPlane{}
+	if err := v1smcp.ConvertFrom(smcp); err != nil {
+		t.Fatalf("unexpected error converting input: %v", err)
+	}
+	for _, version := range versions.GetSupportedVersions() {
+		t.Run(version.String(), func(t *testing.T) {
+			var err error
+			appliedV1SMCP := &v1.ServiceMeshControlPlane{}
+			if appliedV1SMCP.Spec, err = version.Strategy().ApplyProfiles(context.TODO(), testCR, &v1smcp.Spec, controlPlaneNamespace); err == nil {
+				t.Error("expected ApplyProfiles to return error, but none was returned")
 			}
 		})
 	}

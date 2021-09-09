@@ -2,10 +2,12 @@
 apiVersion: kiali.io/v1alpha1
 kind: Kiali
 metadata:
+  labels:
+    maistra-version: "2.1.0"
   name: {{ .Values.kiali.resourceName | default "kiali" }}
   namespace: {{ .Release.Namespace }}
 spec:
-  version: "v1.24"
+  version: "v1.36"
   installation_tag: "Kiali [{{ .Release.Namespace }}]"
   istio_namespace: "{{ .Release.Namespace }}"
 
@@ -13,8 +15,7 @@ spec:
     strategy: "openshift"
 
   deployment:
-    accessible_namespaces:
-    - "{{ .Release.Namespace }}"
+    accessible_namespaces: []
 {{- if and .Values.kiali.hub .Values.kiali.image }}
     image_name: "{{ .Values.kiali.hub }}/{{ .Values.kiali.image }}"
 {{- end }}
@@ -36,11 +37,31 @@ spec:
     view_only_mode: {{ .Values.kiali.dashboard.viewOnlyMode }}
 {{- end }}
 {{- end }}
+{{- if .Values.kiali.deployment }}
+{{- if .Values.kiali.deployment.resources }}
+    resources:
+{{ toYaml .Values.kiali.deployment.resources | indent 6 }}
+{{- end }}
+{{- if .Values.kiali.deployment.tolerations }}
+    tolerations:
+{{ toYaml .Values.kiali.deployment.tolerations | indent 6 }}
+{{- end }}
+{{- if .Values.kiali.deployment.nodeSelector }}
+    node_selector:
+{{ toYaml .Values.kiali.deployment.nodeSelector | indent 6 }}
+{{- end }}
+{{- if .Values.kiali.deployment.affinity }}
+    affinity:
+{{ toYaml .Values.kiali.deployment.affinity | indent 6 }}
+{{- end }}
+{{- end }}
 
   external_services:
     istio:
       config_map_name: istio-{{ .Values.revision | default "default" }}
       url_service_version: http://istiod-{{ .Values.revision | default "default" }}.{{ .Release.Namespace }}:15014/version
+      istiod_deployment_name: istiod-{{ .Values.revision | default "default" }}
+      istio_sidecar_injector_config_map_name: istio-sidecar-injector-{{ .Values.revision | default "default" }}
     grafana:
       auth:
         type: "basic"

@@ -6,6 +6,7 @@ import (
 	"path"
 
 	pkgerrors "github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,6 +80,10 @@ var (
 			path:         "wasm-extensions",
 			enabledField: "wasmExtensions",
 		},
+		RLSChart: {
+			path:         "rls",
+			enabledField: "rateLimiting.rls",
+		},
 	}
 )
 
@@ -88,11 +93,12 @@ var v2_1ChartOrder = [][]string{
 	{TelemetryCommonChart, PrometheusChart},
 	{MixerPolicyChart, MixerTelemetryChart, TracingChart, GatewayIngressChart, GatewayEgressChart, GrafanaChart},
 	{KialiChart},
-	{ThreeScaleChart, WASMExtensionsChart},
+	{ThreeScaleChart, WASMExtensionsChart, RLSChart},
 }
 
 type versionStrategyV2_1 struct {
 	version
+	conversionImpl v2xConversionStrategy
 }
 
 var _ VersionStrategy = (*versionStrategyV2_1)(nil)
@@ -104,6 +110,7 @@ func (v *versionStrategyV2_1) SetImageValues(ctx context.Context, cr *common.Con
 	common.UpdateField(smcpSpec.Istio, "global.proxy_init.image", common.Config.OLM.Images.V2_1.ProxyInit)
 	common.UpdateField(smcpSpec.Istio, "global.proxy.image", common.Config.OLM.Images.V2_1.ProxyV2)
 	common.UpdateField(smcpSpec.Istio, "wasmExtensions.cacher.image", common.Config.OLM.Images.V2_1.WASMCacher)
+	common.UpdateField(smcpSpec.Istio, "rateLimiting.rls.image", common.Config.OLM.Images.V2_1.RLS)
 	common.UpdateField(smcpSpec.ThreeScale, "image", common.Config.OLM.Images.V2_1.ThreeScale)
 	return nil
 }
@@ -118,6 +125,7 @@ func (v *versionStrategyV2_1) ValidateV2(ctx context.Context, cl client.Client, 
 	allErrors = validatePolicyType(ctx, meta, spec, v.version, allErrors)
 	allErrors = validateTelemetryType(ctx, meta, spec, v.version, allErrors)
 	allErrors = v.validateProtocolDetection(ctx, meta, spec, allErrors)
+	allErrors = v.validateMixerDisabled(spec, allErrors)
 	return NewValidationError(allErrors...)
 }
 
@@ -131,6 +139,16 @@ func (v *versionStrategyV2_1) validateProtocolDetection(ctx context.Context, met
 	}
 	if autoDetect.Outbound != nil && *autoDetect.Outbound {
 		allErrors = append(allErrors, fmt.Errorf("automatic protocol detection is not supported in %s; if specified, spec.proxy.networking.protocol.autoDetect.outbound must be set to false", v.String()))
+	}
+	return allErrors
+}
+
+func (v *versionStrategyV2_1) validateMixerDisabled(spec *v2.ControlPlaneSpec, allErrors []error) []error {
+	if spec.Policy != nil && (spec.Policy.Type == v2.PolicyTypeMixer || spec.Policy.Mixer != nil) {
+		allErrors = append(allErrors, fmt.Errorf("support for policy.type %q and policy.Mixer options have been removed in v2.1, please use another alternative", v2.PolicyTypeMixer))
+	}
+	if spec.Telemetry != nil && (spec.Telemetry.Type == v2.TelemetryTypeMixer || spec.Telemetry.Mixer != nil) {
+		allErrors = append(allErrors, fmt.Errorf("support for telemetry.type %q and telemetry.Mixer options have been removed in v2.1, please use another alternative", v2.TelemetryTypeMixer))
 	}
 	return allErrors
 }
@@ -229,6 +247,10 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 	if err != nil {
 		return nil, fmt.Errorf("Could not set field status.lastAppliedConfiguration.istio.global.configNamespace: %v", err)
 	}
+	err = spec.Istio.SetField("meshConfig.ingressControllerMode", "OFF")
+	if err != nil {
+		return nil, fmt.Errorf("Could not set field meshConfig.ingressControllerMode: %v", err)
+	}
 
 	// XXX: using values.yaml settings, as things may have been overridden in profiles/templates
 	if isComponentEnabled(spec.Istio, v2_1ChartMapping[TracingChart].enabledField) {
@@ -241,7 +263,10 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 			}
 
 			// set the correct zipkin address
-			spec.Istio.SetField("global.tracer.zipkin.address", fmt.Sprintf("%s-collector.%s.svc:9411", jaegerResource, smcp.GetNamespace()))
+			err = spec.Istio.SetField("meshConfig.defaultConfig.tracing.zipkin.address", fmt.Sprintf("%s-collector.%s.svc:9411", jaegerResource, smcp.GetNamespace()))
+			if err != nil {
+				return nil, fmt.Errorf("Could not set field istio.meshConfig.defaultConfig.tracing.zipkin.address: %v", err)
+			}
 
 			jaeger := &jaegerv1.Jaeger{}
 			jaeger.SetName(jaegerResource)
@@ -321,9 +346,16 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 		log.V(5).Info(fmt.Sprintf("rendering values:\n%s", string(rawValues)))
 	}
 
+	// Update spec.Istio back with the previous content merged with global.yaml
+	spec.Istio = v1.NewHelmValues(values)
+
 	// Validate the final AppliedSpec
 	err = v.ValidateV2Full(ctx, cr.Client, &smcp.ObjectMeta, &smcp.Status.AppliedSpec)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := validateAndConfigureRLS(spec.Istio); err != nil {
 		return nil, err
 	}
 
@@ -352,13 +384,13 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 		if origGateways, ok := values.AsMap()["gateways"]; ok {
 			if origGatewaysMap, ok := origGateways.(map[string]interface{}); ok {
 				log.V(2).Info("rendering ingress gateway chart for istio-ingressgateway")
-				if ingressRenderings, _, err := v.renderIngressGateway("istio-ingressgateway", smcp.GetNamespace(), origGatewaysMap, v1.NewHelmValues(values)); err == nil {
+				if ingressRenderings, _, err := v.renderIngressGateway("istio-ingressgateway", smcp.GetNamespace(), origGatewaysMap, spec.Istio); err == nil {
 					renderings[GatewayIngressChart] = ingressRenderings[GatewayIngressChart]
 				} else {
 					allErrors = append(allErrors, err)
 				}
 				log.V(2).Info("rendering egress gateway chart for istio-egressgateway")
-				if egressRenderings, _, err := v.renderEgressGateway("istio-egressgateway", smcp.GetNamespace(), origGatewaysMap, v1.NewHelmValues(values)); err == nil {
+				if egressRenderings, _, err := v.renderEgressGateway("istio-egressgateway", smcp.GetNamespace(), origGatewaysMap, spec.Istio); err == nil {
 					renderings[GatewayEgressChart] = egressRenderings[GatewayEgressChart]
 				} else {
 					allErrors = append(allErrors, err)
@@ -369,7 +401,7 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 							continue
 						}
 						log.V(2).Info(fmt.Sprintf("rendering ingress gateway chart for %s", name))
-						if ingressRenderings, _, err := v.renderIngressGateway(name, smcp.GetNamespace(), origGatewaysMap, v1.NewHelmValues(values)); err == nil {
+						if ingressRenderings, _, err := v.renderIngressGateway(name, smcp.GetNamespace(), origGatewaysMap, spec.Istio); err == nil {
 							renderings[GatewayIngressChart] = append(renderings[GatewayIngressChart], ingressRenderings[GatewayIngressChart]...)
 						} else {
 							allErrors = append(allErrors, err)
@@ -380,14 +412,14 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 							continue
 						}
 						log.V(2).Info(fmt.Sprintf("rendering egress gateway chart for %s", name))
-						if egressRenderings, _, err := v.renderEgressGateway(name, smcp.GetNamespace(), origGatewaysMap, v1.NewHelmValues(values)); err == nil {
+						if egressRenderings, _, err := v.renderEgressGateway(name, smcp.GetNamespace(), origGatewaysMap, spec.Istio); err == nil {
 							renderings[GatewayEgressChart] = append(renderings[GatewayEgressChart], egressRenderings[GatewayEgressChart]...)
 						} else {
 							allErrors = append(allErrors, err)
 						}
 					}
 				}
-				v1.NewHelmValues(values).SetField("gateways", origGateways)
+				spec.Istio.SetField("gateways", origGateways)
 			}
 		} else {
 			allErrors = append(allErrors, fmt.Errorf("error retrieving values for gateways charts"))
@@ -422,6 +454,10 @@ func (v *versionStrategyV2_1) renderEgressGateway(name string, namespace string,
 
 func (v *versionStrategyV2_1) renderGateway(name string, namespace string, chartPath string, typeName string, gateways map[string]interface{}, values *v1.HelmValues) (map[string][]manifest.Manifest, map[string]interface{}, error) {
 	gateway, ok, _ := unstructured.NestedMap(gateways, name)
+	// if 'app' label is not provided, set it to gateway name
+	if _, found, _ := unstructured.NestedString(gateway, "labels", "app"); !found {
+		unstructured.SetNestedField(gateway, name, "labels", "app")
+	}
 	if !ok {
 		// XXX: return an error?
 		return map[string][]manifest.Manifest{}, nil, nil
@@ -437,4 +473,46 @@ func (v *versionStrategyV2_1) renderGateway(name string, namespace string, chart
 		return nil, nil, err
 	}
 	return helm.RenderChart(path.Join(v.GetChartsDir(), chartPath), namespace, values)
+}
+
+func (v *versionStrategyV2_1) GetExpansionPorts() []corev1.ServicePort {
+	return v.conversionImpl.GetExpansionPorts()
+}
+
+func (v *versionStrategyV2_1) GetTelemetryType(in *v1.HelmValues, mixerTelemetryEnabled, mixerTelemetryEnabledSet, remoteEnabled bool) v2.TelemetryType {
+	return v.conversionImpl.GetTelemetryType(in, mixerTelemetryEnabled, mixerTelemetryEnabledSet, remoteEnabled)
+}
+
+func (v *versionStrategyV2_1) GetPolicyType(in *v1.HelmValues, mixerPolicyEnabled, mixerPolicyEnabledSet, remoteEnabled bool) v2.PolicyType {
+	return v.conversionImpl.GetPolicyType(in, mixerPolicyEnabled, mixerPolicyEnabledSet, remoteEnabled)
+}
+
+func validateAndConfigureRLS(spec *v1.HelmValues) error {
+	if enabled, found, _ := spec.GetBool(string(v2.ControlPlaneComponentNameRateLimiting) + ".enabled"); !found || !enabled {
+		return nil
+	}
+
+	if storageBackend, found, _ := spec.GetString(string(v2.ControlPlaneComponentNameRateLimiting) + ".storageBackend"); found {
+		if storageAddress, found, _ := spec.GetString(string(v2.ControlPlaneComponentNameRateLimiting) + ".storageAddress"); found {
+			variables := make(map[string]string)
+
+			switch storageBackend {
+			case "redis":
+				variables["REDIS_SOCKET_TYPE"] = "tcp"
+				variables["REDIS_URL"] = storageAddress
+			case "memcache":
+				variables["BACKEND_TYPE"] = "memcache"
+				variables["MEMCACHE_HOST_PORT"] = storageAddress
+			default:
+				return NewValidationError(fmt.Errorf("invalid value %q for %s.storageBackend. It must be one of: {redis, memcache}", storageBackend, v2.ControlPlaneComponentNameRateLimiting))
+			}
+
+			for k, v := range variables {
+				field := fmt.Sprintf("%s.env.%s", v2.ControlPlaneComponentNameRateLimiting, k)
+				spec.SetField(field, v)
+			}
+		}
+	}
+
+	return nil
 }

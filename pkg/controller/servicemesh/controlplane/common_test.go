@@ -10,9 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maistra/istio-operator/pkg/controller/hacks"
 	"go.uber.org/zap/zapcore"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -32,6 +34,50 @@ import (
 )
 
 var ctx = common.NewContextWithLog(context.Background(), logf.Log)
+
+var kialiCRD = v1.CustomResourceDefinition{
+	ObjectMeta: metav1.ObjectMeta{Name: "kialis.kiali.io"},
+	Spec: v1.CustomResourceDefinitionSpec{
+		Group: "kiali.io",
+		Names: v1.CustomResourceDefinitionNames{
+			Plural:   "kialis",
+			Singular: "kiali",
+			Kind:     "Kiali",
+			ListKind: "KialiList",
+		},
+		Scope: "Namespaced",
+		Versions: []v1.CustomResourceDefinitionVersion{
+			{
+				Name:   "v1alpha1",
+				Served: true,
+			},
+		},
+	},
+}
+
+var jaegerCRD = v1.CustomResourceDefinition{
+	ObjectMeta: metav1.ObjectMeta{Name: "jaegers.jaegertracing.io"},
+	Spec: v1.CustomResourceDefinitionSpec{
+		Group: "jaegertracing.io",
+		Names: v1.CustomResourceDefinitionNames{
+			Plural:   "jaegers",
+			Singular: "jaeger",
+			Kind:     "Jaeger",
+			ListKind: "JaegerList",
+		},
+		Scope: "Namespaced",
+		Versions: []v1.CustomResourceDefinitionVersion{
+			{
+				Name:   "v1",
+				Served: true,
+			},
+		},
+	},
+}
+
+func init() {
+	hacks.CacheSyncWaitDuration = 0
+}
 
 type IntegrationTestValidation struct {
 	Assertions []test.ActionAssertion
@@ -65,6 +111,8 @@ func RunSimpleInstallTest(t *testing.T, testCases []IntegrationTestCase) {
 			Resources: []runtime.Object{
 				&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: controlPlaneNamespace}},
 				&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operatorNamespace}},
+				&kialiCRD,
+				&jaegerCRD,
 			},
 			GroupResources: []*restmapper.APIGroupResources{
 				CNIGroupResources,
@@ -107,6 +155,12 @@ func RunSimpleInstallTest(t *testing.T, testCases []IntegrationTestCase) {
 			test.RunControllerTestCase(t, ctc)
 		})
 	}
+}
+
+func New21SMCPResource(name, namespace string, spec *v2.ControlPlaneSpec) *v2.ServiceMeshControlPlane {
+	smcp := NewV2SMCPResource(name, namespace, spec)
+	smcp.Spec.Version = versions.V2_1.String()
+	return smcp
 }
 
 func New20SMCPResource(name, namespace string, spec *v2.ControlPlaneSpec) *v2.ServiceMeshControlPlane {
@@ -170,6 +224,7 @@ func InitializeGlobals(operatorNamespace string) func() {
 		common.Config.OLM.Images.V1_1.IOR = "injected-ior-v1.1"
 		common.Config.OLM.Images.V2_0.WASMCacher = "injected-wasm-cacher-v2.0"
 		common.Config.OLM.Images.V2_1.WASMCacher = "injected-wasm-cacher-v2.1"
+		common.Config.OLM.Images.V2_1.RLS = "injected-rls-v2.1"
 		os.Setenv("POD_NAMESPACE", operatorNamespace)
 		common.GetOperatorNamespace()
 		if _, filename, _, ok := goruntime.Caller(0); ok {
@@ -278,22 +333,10 @@ func SetDeploymentReady(action clienttesting.Action, tracker clienttesting.Objec
 	createAction := action.(clienttesting.CreateAction)
 	applied = false
 	handled = true
-	obj = createAction.GetObject()
 	var deployment *appsv1.Deployment
-	switch typedObj := obj.(type) {
-	case *appsv1.Deployment:
-		deployment = typedObj
-	case *unstructured.Unstructured:
-		var j []byte
-		if j, err = json.Marshal(typedObj); err != nil {
-			return
-		}
-		deployment = &appsv1.Deployment{}
-		if err = json.Unmarshal(j, deployment); err != nil {
-			return
-		}
-	default:
-		err = fmt.Errorf("object is not an appsv1.Deployment: %T", obj)
+
+	deployment, err = common.ConvertObjectToDeployment(createAction.GetObject())
+	if err != nil {
 		return
 	}
 

@@ -3,12 +3,12 @@ package controlplane
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"k8s.io/apimachinery/pkg/util/sets"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +27,7 @@ import (
 	v2 "github.com/maistra/istio-operator/pkg/apis/maistra/v2"
 	"github.com/maistra/istio-operator/pkg/controller/common"
 	"github.com/maistra/istio-operator/pkg/controller/common/cni"
+	"github.com/maistra/istio-operator/pkg/controller/hacks"
 )
 
 const (
@@ -55,8 +56,9 @@ func newReconciler(cl client.Client, scheme *runtime.Scheme, eventRecorder recor
 			EventRecorder:     eventRecorder,
 			OperatorNamespace: operatorNamespace,
 		},
-		cniConfig:   cniConfig,
-		reconcilers: map[types.NamespacedName]ControlPlaneInstanceReconciler{},
+		cniConfig:                   cniConfig,
+		earliestReconciliationTimes: map[types.NamespacedName]time.Time{},
+		reconcilers:                 map[types.NamespacedName]ControlPlaneInstanceReconciler{},
 	}
 	reconciler.instanceReconcilerFactory = NewControlPlaneInstanceReconciler
 	return reconciler
@@ -81,28 +83,13 @@ func add(mgr manager.Manager, r *ControlPlaneReconciler) error {
 	}
 
 	// watch created resources for use in synchronizing ready status
-	if err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}},
-		&handler.EnqueueRequestForOwner{
-			IsController: true,
-			OwnerType:    &v2.ServiceMeshControlPlane{},
-		},
-		ownedResourcePredicates); err != nil {
+	if err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, enqueueRequestForSMCP, ownedResourcePredicates); err != nil {
 		return err
 	}
-	if err = c.Watch(&source.Kind{Type: &appsv1.StatefulSet{}},
-		&handler.EnqueueRequestForOwner{
-			IsController: true,
-			OwnerType:    &v2.ServiceMeshControlPlane{},
-		},
-		ownedResourcePredicates); err != nil {
+	if err = c.Watch(&source.Kind{Type: &appsv1.StatefulSet{}}, enqueueRequestForSMCP, ownedResourcePredicates); err != nil {
 		return err
 	}
-	if err = c.Watch(&source.Kind{Type: &appsv1.DaemonSet{}},
-		&handler.EnqueueRequestForOwner{
-			IsController: true,
-			OwnerType:    &v2.ServiceMeshControlPlane{},
-		},
-		ownedResourcePredicates); err != nil {
+	if err = c.Watch(&source.Kind{Type: &appsv1.DaemonSet{}}, enqueueRequestForSMCP, ownedResourcePredicates); err != nil {
 		return err
 	}
 
@@ -135,6 +122,23 @@ func add(mgr manager.Manager, r *ControlPlaneReconciler) error {
 	return nil
 }
 
+var enqueueRequestForSMCP = &handler.EnqueueRequestsFromMapFunc{
+	ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []reconcile.Request {
+		labels := obj.Meta.GetLabels()
+		if labels[common.KubernetesAppManagedByKey] == common.KubernetesAppManagedByValue {
+			ownerNamespace := labels[common.OwnerKey]
+			ownerName := labels[common.OwnerNameKey]
+			if ownerNamespace != "" && ownerName != "" {
+				return []reconcile.Request{{NamespacedName: types.NamespacedName{
+					Namespace: ownerNamespace,
+					Name:      ownerName,
+				}}}
+			}
+		}
+		return nil
+	}),
+}
+
 var ownedResourcePredicates = predicate.Funcs{
 	CreateFunc: func(_ event.CreateEvent) bool {
 		// we don't need to update status on create events
@@ -156,8 +160,9 @@ type ControlPlaneReconciler struct {
 	common.ControllerResources
 	cniConfig cni.Config
 
-	reconcilers map[types.NamespacedName]ControlPlaneInstanceReconciler
-	mu          sync.Mutex
+	earliestReconciliationTimes map[types.NamespacedName]time.Time
+	reconcilers                 map[types.NamespacedName]ControlPlaneInstanceReconciler
+	mu                          sync.Mutex
 
 	instanceReconcilerFactory func(common.ControllerResources, *v2.ServiceMeshControlPlane, cni.Config) ControlPlaneInstanceReconciler
 }
@@ -178,6 +183,18 @@ func (r *ControlPlaneReconciler) Reconcile(request reconcile.Request) (reconcile
 	log := createLogger().WithValues("ServiceMeshControlPlane", request)
 	ctx := common.NewReconcileContext(log)
 
+	if earliestReconciliationTime, ok := r.earliestReconciliationTimes[request.NamespacedName]; ok {
+		if earliestReconciliationTime.After(time.Now()) {
+			log.Info("Skipping reconciliation of ServiceMeshControlPlane because reconciliation is paused")
+			return reconcile.Result{
+				Requeue:      true,
+				RequeueAfter: earliestReconciliationTime.Sub(time.Now()),
+			}, nil
+		}
+		delete(r.earliestReconciliationTimes, request.NamespacedName)
+	}
+	ctx = hacks.WrapContext(ctx, r.earliestReconciliationTimes)
+
 	log.Info("Processing ServiceMeshControlPlane")
 	defer func() {
 		log.Info("Completed ServiceMeshControlPlane processing")
@@ -192,6 +209,7 @@ func (r *ControlPlaneReconciler) Reconcile(request reconcile.Request) (reconcile
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			log.Info("ServiceMeshControlPlane deleted")
+			delete(r.earliestReconciliationTimes, request.NamespacedName)
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object

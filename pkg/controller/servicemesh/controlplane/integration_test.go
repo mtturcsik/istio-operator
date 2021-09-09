@@ -41,12 +41,12 @@ func TestDefaultInstall(t *testing.T) {
 			smcp: NewV2SMCPResource(controlPlaneName, controlPlaneNamespace, &v2.ControlPlaneSpec{Version: versions.V2_0.String()}),
 			create: IntegrationTestValidation{
 				Assertions: ActionAssertions{
-					Assert("create").On("deployments").Named("wasm-cacher-test").In(controlPlaneNamespace).IsNotSeen(),
+					Assert("create").On("deployments").Named("wasm-cacher-" + controlPlaneName).In(controlPlaneNamespace).IsNotSeen(),
 				},
 			},
 			delete: IntegrationTestValidation{
 				Assertions: ActionAssertions{
-					Assert("delete").On("deployments").Named("wasm-cacher-test").In(controlPlaneNamespace).IsNotSeen(),
+					Assert("delete").On("deployments").Named("wasm-cacher-" + controlPlaneName).In(controlPlaneNamespace).IsNotSeen(),
 				},
 			},
 		},
@@ -56,12 +56,12 @@ func TestDefaultInstall(t *testing.T) {
 			smcp: NewV2SMCPResource(controlPlaneName, controlPlaneNamespace, &v2.ControlPlaneSpec{Version: versions.V2_1.String()}),
 			create: IntegrationTestValidation{
 				Assertions: ActionAssertions{
-					Assert("create").On("deployments").Named("wasm-cacher-test").In(controlPlaneNamespace).IsNotSeen(),
+					Assert("create").On("deployments").Named("wasm-cacher-" + controlPlaneName).In(controlPlaneNamespace).IsSeen(),
 				},
 			},
 			delete: IntegrationTestValidation{
 				Assertions: ActionAssertions{
-					Assert("delete").On("deployments").Named("wasm-cacher-test").In(controlPlaneNamespace).IsNotSeen(),
+					Assert("delete").On("deployments").Named("wasm-cacher-" + controlPlaneName).In(controlPlaneNamespace).IsSeen(),
 				},
 			},
 		},
@@ -131,7 +131,7 @@ func TestBootstrapping(t *testing.T) {
 					Profiles: []string{"maistra"},
 				},
 			},
-			crdCount: 14,
+			crdCount: 17,
 		},
 	}
 
@@ -165,7 +165,7 @@ func TestBootstrapping(t *testing.T) {
 							// initialize status
 							Verify("patch").On("servicemeshcontrolplanes/status").Named(smcpName).In(controlPlaneNamespace).Passes(initalStatusTest),
 							// verify that a CRD is installed
-							Verify("create").On("customresourcedefinitions").IsSeen(),
+							Verify("create").On("customresourcedefinitions").Version("v1").IsSeen(),
 							// verify that CNI is installed
 							Verify("create").On("daemonsets").Named(cniDaemonSetName).In(operatorNamespace).IsSeen(),
 							// verify readiness check triggered daemon set creation
@@ -173,7 +173,7 @@ func TestBootstrapping(t *testing.T) {
 						),
 						Assertions: ActionAssertions{
 							// verify proper number of CRDs is created
-							Assert("create").On("customresourcedefinitions").SeenCountIs(tc.crdCount),
+							Assert("create").On("customresourcedefinitions").Version("v1").SeenCountIs(tc.crdCount),
 						},
 						Reactors: []clienttesting.Reactor{
 							ReactTo("list").On("daemonsets").In(operatorNamespace).With(
@@ -229,8 +229,8 @@ func FinalizerAddedTest(finalizer string) VerifierTestFunc {
 }
 
 type jsonPatchOperation struct {
-	Operation string      `json:"op"`
-	Path      string      `json:"path"`
+	Operation string                       `json:"op"`
+	Path      string                       `json:"path"`
 	Value     maistrav1.ControlPlaneStatus `json:"value,omitempty"`
 }
 

@@ -3,6 +3,11 @@ kind: ClusterServiceVersion
 metadata:
   name: servicemeshoperator.v2.1.0
   namespace: placeholder
+  labels:
+    operatorframework.io/arch.amd64: supported
+    operatorframework.io/arch.s390x: supported
+    operatorframework.io/arch.ppc64le: supported
+
   annotations:
     categories: "OpenShift Optional, Integration & Delivery"
     capabilities: "Seamless Upgrades"
@@ -12,7 +17,7 @@ metadata:
       The OpenShift Service Mesh Operator enables you to install, configure, and manage an instance of Red Hat OpenShift Service Mesh. OpenShift Service Mesh is based on the open source Istio project.
 
     containerImage: registry.redhat.io/openshift-service-mesh/istio-rhel8-operator:2.1.0
-    createdAt: 2021-02-24T12:16:14CET
+    createdAt: 2021-09-06T09:33:42CEST
     support: Red Hat, Inc. 
     olm.skipRange: ">=1.0.2 <2.1.0-0"
     operators.openshift.io/infrastructure-features: '["Disconnected"]'
@@ -140,7 +145,7 @@ spec:
 
     ### More Information
 
-    * [Documentation](https://docs.openshift.com/container-platform/latest/service_mesh/servicemesh-release-notes.html)
+    * [Documentation](https://docs.openshift.com/container-platform/latest/service_mesh/v2x/servicemesh-release-notes.html)
     * [Bugs](https://issues.redhat.com/projects/OSSM)
 
   icon:
@@ -235,14 +240,14 @@ spec:
     name: Red Hat, Inc.
   links:
   - name: Red Hat OpenShift Service Mesh
-    url: https://docs.openshift.com/container-platform/latest/service_mesh/servicemesh-release-notes.html
+    url: https://docs.openshift.com/container-platform/latest/service_mesh/v2x/servicemesh-release-notes.html
   - name: Istio
     url: https://istio.io/
   - name: Operator Source Code
     url: https://github.com/Maistra/istio-operator
   - name: Bugs
     url: https://issues.redhat.com/projects/OSSM
-  replaces: servicemeshoperator.v2.0.2
+  replaces: servicemeshoperator.v2.0.5
   installModes:
   - type: OwnNamespace
     supported: false
@@ -335,6 +340,8 @@ spec:
     image: registry.redhat.io/openshift-service-mesh/proxyv2-rhel8:2.1.0
   - name: v2_1.wasm-cacher
     image: registry.redhat.io/openshift-service-mesh/pilot-rhel8:2.1.0
+  - name: v2_1.rls
+    image: registry.redhat.io/openshift-service-mesh/ratelimit-rhel8:2.1.0
   install:
     strategy: deployment
     spec:
@@ -420,6 +427,7 @@ spec:
             - networking.k8s.io
           resources:
             - networkpolicies
+            - ingresses
           verbs:
             - '*'
         - apiGroups:
@@ -511,12 +519,16 @@ spec:
             - clusternetworks
           verbs:
             - get
+            - list
+            - watch
         - apiGroups:
             - config.openshift.io
           resources:
             - networks
           verbs:
             - get
+            - list
+            - watch
         - apiGroups:
             - image.openshift.io
           resources:
@@ -628,6 +640,7 @@ spec:
                 olm.relatedImage.v2_1.proxy-init: registry.redhat.io/openshift-service-mesh/proxy-init-rhel7:2.1.0
                 olm.relatedImage.v2_1.proxyv2: registry.redhat.io/openshift-service-mesh/proxyv2-rhel8:2.1.0
                 olm.relatedImage.v2_1.wasm-cacher: registry.redhat.io/openshift-service-mesh/pilot-rhel8:2.1.0
+                olm.relatedImage.v2_1.rls: registry.redhat.io/openshift-service-mesh/ratelimit-rhel8:2.1.0
                 oauth-proxy.query: "true"
                 oauth-proxy.namespace: openshift
                 oauth-proxy.name: oauth-proxy
@@ -665,6 +678,9 @@ spec:
                     - name: webhook-tls-volume
                       readOnly: true
                       mountPath: /tmp/k8s-webhook-server/serving-certs
+                    - name: smcp-templates
+                      readOnly: true
+                      mountPath: /usr/local/share/istio-operator/templates/
               volumes:
                 - name: operator-olm-config
                   downwardAPI:
@@ -677,6 +693,10 @@ spec:
                   secret:
                     secretName: maistra-operator-serving-cert
                     optional: true # this won't be available until service-ca creates the secret
+                - name: smcp-templates
+                  configMap:
+                    name: smcp-templates
+                    optional: true
   customresourcedefinitions:
     owned:
     - name: servicemeshcontrolplanes.maistra.io
@@ -781,7 +801,7 @@ spec:
         path: controlPlaneRef.namespace
         x-descriptors:
           - 'urn:alm:descriptor:com.tectonic.ui:fieldGroup:Service_Mesh_Control_Plane'
-          - 'urn:alm:descriptor:io.kubernetes:Namespace'
+          - 'urn:alm:descriptor:io.kubernetes:Project'
       - displayName: Name
         description: The name of the ServiceMeshControlPlane to which this namespace belongs
         path: controlPlaneRef.name

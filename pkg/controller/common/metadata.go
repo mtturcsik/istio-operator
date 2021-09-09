@@ -1,13 +1,5 @@
 package common
 
-import (
-	"context"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
 const (
 	// MetadataNamespace is the namespace for service mesh metadata (labels, annotations)
 	MetadataNamespace = "maistra.io"
@@ -18,13 +10,19 @@ const (
 	// OwnerKey represents the mesh (namespace) to which the resource relates
 	OwnerKey = MetadataNamespace + "/owner"
 
+	// OwnerNameKey represents the name of the SMCP to which the resource relates
+	OwnerNameKey = MetadataNamespace + "/owner-name"
+
 	// MemberOfKey represents the mesh (namespace) to which the resource relates
 	MemberOfKey = MetadataNamespace + "/member-of"
+
+	// IgnoreNamespaceKey indicates that sidecar injection should be disabled for the namespace
+	IgnoreNamespaceKey = MetadataNamespace + "/ignore-namespace"
 
 	// GenerationKey represents the generation to which the resource was last reconciled
 	GenerationKey = MetadataNamespace + "/generation"
 
-	// MeshGenerationKey represents the generation of the service mesh to which the resource was last reconciled
+	// MeshGenerationKey represents the generation of the service mesh to which the resource was last reconciled.  This uniquely identifies an installation, incorporating the operator version and the smcp resource generation.
 	MeshGenerationKey = MetadataNamespace + "/mesh-generation"
 
 	// InternalKey is used to identify the resource as being internal to the mesh itself (i.e. should not be applied to members)
@@ -42,25 +40,15 @@ const (
 	KubernetesAppPartOfKey    = KubernetesAppNamespace + "/part-of"
 	KubernetesAppManagedByKey = KubernetesAppNamespace + "/managed-by"
 
+	// KubernetesAppPartOfValue is the KubernetesAppPartOfKey label value the operator sets on all objects it creates
+	KubernetesAppPartOfValue = "istio"
+
+	// KubernetesAppManagedByValue is the KubernetesAppManagedByKey label value the operator sets on all objects it creates
+	KubernetesAppManagedByValue = "maistra-istio-operator"
+
 	// MemberRollName is the only name we allow for ServiceMeshMemberRoll objects
 	MemberRollName = "default"
 
 	// MemberName is the only name we allow for ServiceMeshMember objects
 	MemberName = "default"
 )
-
-func FetchOwnedResources(ctx context.Context, kubeClient client.Client, gvk schema.GroupVersionKind, owner, namespace string) (*unstructured.UnstructuredList, error) {
-	labelSelector := map[string]string{OwnerKey: owner}
-	objects := &unstructured.UnstructuredList{}
-	objects.SetGroupVersionKind(gvk)
-	err := kubeClient.List(ctx, objects, client.InNamespace(namespace), client.MatchingLabels(labelSelector))
-	return objects, err
-}
-
-func FetchMeshResources(ctx context.Context, kubeClient client.Client, gvk schema.GroupVersionKind, mesh, namespace string) (*unstructured.UnstructuredList, error) {
-	labelSelector := map[string]string{MemberOfKey: mesh}
-	objects := &unstructured.UnstructuredList{}
-	objects.SetGroupVersionKind(gvk)
-	err := kubeClient.List(ctx, objects, client.InNamespace(namespace), client.MatchingLabels(labelSelector))
-	return objects, err
-}
