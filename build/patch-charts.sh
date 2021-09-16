@@ -64,7 +64,7 @@ function patchTemplates() {
 
   mv ${HELM_DIR}/base/templates/serviceaccount.yaml ${HELM_DIR}/istio-control/istio-discovery/templates/serviceaccount.yaml
   mv ${HELM_DIR}/base/templates/clusterrolebinding.yaml ${HELM_DIR}/istio-control/istio-discovery/templates/clusterrolebinding.yaml
-
+  cp ${HELM_DIR}/base/templates/validatingwebhookconfiguration.yaml resources/helm/v2.1/istiod-remote/templates/
   # - remove istio-reader cluster role
   # - and again....
   sed_wrap -i -e '/^---/,$ d' \
