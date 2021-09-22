@@ -526,6 +526,55 @@ function hacks() {
     }' ${HELM_DIR}/istio-control/istio-discovery/templates/deployment.yaml
 }
 
+function patchValidatingWebhook {
+  webhookconfig=resources/helm/v2.1/istiod-remote/templates/validatingwebhookconfiguration.yaml
+  sed_wrap -i -e '/metadata:/,/webhooks:/ {
+                /namespace:/d
+                /name:/s/istiod-{{ .Release.Namespace }}/istiod-{{ .Values.revision | default "default" }}-{{ .Release.Namespace }}/
+                /labels:/a\
+\    istio.io/rev: \{\{ .Values.revision | default "default" \}\}
+              }' $webhookconfig
+  sed_wrap -i -e 's/name: istiod$/name: istiod-{{ .Values.revision | default "default" }}/' $webhookconfig
+  sed_wrap -i -e 's|\(\(^ *\)rules:\)|\2namespaceSelector:\
+\2  matchExpressions:\
+\2  - key: maistra.io/member-of\
+\2    operator: In\
+\2    values:\
+\2    - {{ .Release.Namespace }}\
+\2  - key: istio.io/rev\
+\2    operator: In\
+\2    values:\
+\2    - {{ .Values.revision }}\
+\1|' $webhookconfig
+  sed_wrap -i -e '/rules:/ a\
+      - operations:\
+        - CREATE\
+        - UPDATE\
+        apiGroups:\
+        - authentication.maistra.io\
+        apiVersions:\
+        - "*"\
+        resources:\
+        - "*"\
+      - operations:\
+        - CREATE\
+        - UPDATE\
+        apiGroups:\
+        - rbac.maistra.io\
+        apiVersions:\
+        - "*"\
+        resources:\
+        - "*"' $webhookconfig
+  sed_wrap -i -e '1 i\
+\{\{- if .Values.global.configValidation \}\}
+' $webhookconfig
+
+  sed_wrap -i -e 's/^---/{{- end }}/' $webhookconfig
+
+  sed_wrap -i -e 's/failurePolicy: Ignore/failurePolicy: Fail/' $webhookconfig
+
+}
+
 copyOverlay
 removeUnsupportedCharts
 
@@ -534,6 +583,7 @@ patchTemplates
 patchGalley
 patchGateways
 patchSidecarInjector
+patchValidatingWebhook
 #patchMixer # no longer present in 2.1
 #patchKialiTemplate # no longer present upstream
 #patchKialiOpenShift
