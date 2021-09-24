@@ -543,3 +543,5 @@ copyGlobalValues
 
 # XXX: hacks - remove before 2.0 release
 hacks
+cp ${HELM_DIR}/istio-control/istio-discovery/templates/validatingwebhookconfiguration.yaml resources/helm/v2.1/istiod-remote/templates/
+cp ${HELM_DIR}/istio-control/istio-discovery/templates/mutatingwebhook.yaml resources/helm/v2.1/istiod-remote/templates/
