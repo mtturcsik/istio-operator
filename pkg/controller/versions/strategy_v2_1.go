@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/go-logr/logr"
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -84,10 +83,6 @@ var (
 		RLSChart: {
 			path:         "rls",
 			enabledField: "rateLimiting.rls",
-		},
-		RemoteChart: {
-			path:         "istiod-remote",
-			enabledField: "remote",
 		},
 	}
 )
@@ -225,38 +220,38 @@ func (v *versionStrategyV2_1) isExternalProfileActive(profiles []string) bool {
 	return false
 }
 
-func (v *versionStrategyV2_1) checkAndSetupRemoteDataPlaneConfig(istio *v1.HelmValues, log logr.Logger) {
-	if isComponentEnabled(istio, v2_1ChartMapping[RemoteChart].enabledField) {
-		log.Info("Remote chart used. Disabling everything else.")
-		discoveryChartDetails := v2_1ChartMapping[DiscoveryChart]
-		discoveryChartDetails.enabledField = "noway"
-		v2_1ChartMapping[DiscoveryChart] = discoveryChartDetails
-		meshConfigChartDetails := v2_1ChartMapping[MeshConfigChart]
-		meshConfigChartDetails.enabledField = "noway"
-		v2_1ChartMapping[MeshConfigChart] = meshConfigChartDetails
-		telemetryCommonChartDetails := v2_1ChartMapping[TelemetryCommonChart]
-		telemetryCommonChartDetails.enabledField = "noway"
-		v2_1ChartMapping[TelemetryCommonChart] = telemetryCommonChartDetails
-	}
-}
-
-func (v *versionStrategyV2_1) checkAndSetupExternalControlPlaneConfig(externalProfileFound bool, log logr.Logger) {
-	if externalProfileFound {
-		log.Info("External Control Plane profile used. Disabling everything else, except the discovery Chart.")
-		meshConfigChartDetails := v2_1ChartMapping[MeshConfigChart]
-		meshConfigChartDetails.enabledField = "noway"
-		v2_1ChartMapping[MeshConfigChart] = meshConfigChartDetails
-		telemetryCommonChartDetails := v2_1ChartMapping[TelemetryCommonChart]
-		telemetryCommonChartDetails.enabledField = "noway"
-		v2_1ChartMapping[TelemetryCommonChart] = telemetryCommonChartDetails
-		gatewayEgressChartDetails := v2_1ChartMapping[GatewayEgressChart]
-		gatewayEgressChartDetails.enabledField = "noway"
-		v2_1ChartMapping[GatewayEgressChart] = gatewayEgressChartDetails
-		gatewayInressChartDetails := v2_1ChartMapping[GatewayIngressChart]
-		gatewayInressChartDetails.enabledField = "noway"
-		v2_1ChartMapping[GatewayIngressChart] = gatewayInressChartDetails
-	}
-}
+// func (v *versionStrategyV2_1) checkAndSetupRemoteDataPlaneConfig(istio *v1.HelmValues, log logr.Logger) {
+// 	if isComponentEnabled(istio, v2_1ChartMapping[RemoteChart].enabledField) {
+// 		log.Info("Remote chart used. Disabling everything else.")
+// 		discoveryChartDetails := v2_1ChartMapping[DiscoveryChart]
+// 		discoveryChartDetails.enabledField = "noway"
+// 		v2_1ChartMapping[DiscoveryChart] = discoveryChartDetails
+// 		meshConfigChartDetails := v2_1ChartMapping[MeshConfigChart]
+// 		meshConfigChartDetails.enabledField = "noway"
+// 		v2_1ChartMapping[MeshConfigChart] = meshConfigChartDetails
+// 		telemetryCommonChartDetails := v2_1ChartMapping[TelemetryCommonChart]
+// 		telemetryCommonChartDetails.enabledField = "noway"
+// 		v2_1ChartMapping[TelemetryCommonChart] = telemetryCommonChartDetails
+// 	}
+// }
+//
+// func (v *versionStrategyV2_1) checkAndSetupExternalControlPlaneConfig(externalProfileFound bool, log logr.Logger) {
+// 	if externalProfileFound {
+// 		log.Info("External Control Plane profile used. Disabling everything else, except the discovery Chart.")
+// 		meshConfigChartDetails := v2_1ChartMapping[MeshConfigChart]
+// 		meshConfigChartDetails.enabledField = "noway"
+// 		v2_1ChartMapping[MeshConfigChart] = meshConfigChartDetails
+// 		telemetryCommonChartDetails := v2_1ChartMapping[TelemetryCommonChart]
+// 		telemetryCommonChartDetails.enabledField = "noway"
+// 		v2_1ChartMapping[TelemetryCommonChart] = telemetryCommonChartDetails
+// 		gatewayEgressChartDetails := v2_1ChartMapping[GatewayEgressChart]
+// 		gatewayEgressChartDetails.enabledField = "noway"
+// 		v2_1ChartMapping[GatewayEgressChart] = gatewayEgressChartDetails
+// 		gatewayInressChartDetails := v2_1ChartMapping[GatewayIngressChart]
+// 		gatewayInressChartDetails.enabledField = "noway"
+// 		v2_1ChartMapping[GatewayIngressChart] = gatewayInressChartDetails
+// 	}
+// }
 
 // TODO: consider consolidating this with 2.0 rendering logic
 func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerResources, cniConfig cni.Config, smcp *v2.ServiceMeshControlPlane) (map[string][]manifest.Manifest, error) {
@@ -427,14 +422,11 @@ func (v *versionStrategyV2_1) Render(ctx context.Context, cr *common.ControllerR
 	}
 
 	// Remote Data Plane check and setup if so
-	v.checkAndSetupRemoteDataPlaneConfig(spec.Istio, log)
+	// v.checkAndSetupRemoteDataPlaneConfig(spec.Istio, log)
 
-<<<<<<< HEAD
-=======
 	// External Control Plane check and setup if so
-	v.checkAndSetupExternalControlPlaneConfig(externalProfileFound, log)
+	// v.checkAndSetupExternalControlPlaneConfig(externalProfileFound, log)
 
->>>>>>> b036774f (extend unit tests for modified parts)
 	// convert back to the v2 type
 	smcp.Status.AppliedSpec = v2.ControlPlaneSpec{}
 	err = cr.Scheme.Convert(&smcp.Status.AppliedValues, &smcp.Status.AppliedSpec, nil)

@@ -16,7 +16,6 @@ const (
 	ThreeScaleChart      = "maistra-threescale"
 	TracingChart         = "tracing"
 	WASMExtensionsChart  = "wasm-extensions"
-	RemoteChart          = "istiod-remote"
 	RLSChart             = "rls"
 	RemoteChart          = "istiod-remote"
 

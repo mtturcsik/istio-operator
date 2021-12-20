@@ -10665,17 +10665,6 @@ spec:
         olm.relatedImage.v2_0.wasm-cacher: docker.io/maistra/pilot-ubi8:2.0.2
 
         olm.relatedImage.v2_1.3scale-istio-adapter: quay.io/3scale/3scale-istio-adapter:v2.0.0
-<<<<<<< HEAD
-        olm.relatedImage.v2_1.cni: smesh21/istio-cni-ubi8:2.1.0
-        olm.relatedImage.v2_1.grafana: docker.io/maistra/grafana-ubi8:2.1.0
-        olm.relatedImage.v2_1.mixer: docker.io/maistra/mixer-ubi8:2.1.0
-        olm.relatedImage.v2_1.pilot: docker.io/maistra/pilot-ubi8:2.1.0
-        olm.relatedImage.v2_1.prometheus: docker.io/maistra/prometheus-ubi8:2.1.0
-        olm.relatedImage.v2_1.proxy-init: docker.io/maistra/proxy-init-centos7:2.1.0
-        olm.relatedImage.v2_1.proxyv2: smesh21/proxyv2-ubi8:2.1.0
-        olm.relatedImage.v2_1.wasm-cacher: docker.io/maistra/pilot-ubi8:2.1.0
-        olm.relatedImage.v2_1.rls: docker.io/maistra/ratelimit-ubi8:2.1.0
-=======
         olm.relatedImage.v2_1.cni: quay.io/maistra/istio-cni-ubi8:2.1.0
         olm.relatedImage.v2_1.grafana: quay.io/maistra/grafana-ubi8:2.1.0
         olm.relatedImage.v2_1.pilot: quay.io/maistra/pilot-ubi8:2.1.0
@@ -10683,11 +10672,8 @@ spec:
         olm.relatedImage.v2_1.proxyv2: quay.io/maistra/proxyv2-ubi8:2.1.0
         olm.relatedImage.v2_1.wasm-cacher: quay.io/maistra/pilot-ubi8:2.1.0
         olm.relatedImage.v2_1.rls: quay.io/maistra/ratelimit-ubi8:2.1.0
->>>>>>> d74a7dae (MAISTRA-2723: Update community images URL (#864))
 
-        olm.cniDisabled: "true"
-
-        olm.cniDisabled: "true"
+        olm.cniEnabled: "true"
 
     spec:
       serviceAccountName: istio-operator

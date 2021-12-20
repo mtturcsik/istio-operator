@@ -4,18 +4,6 @@ metadata:
   name: remote
 spec:
   version: v2.1
-  gateways:
-    enabled: false
-    ingress:
-      enabled: false
-      ingress: false
-      service:
-        type: ClusterIP
-    egress:
-      enabled: false
-    openshiftRoute:
-      enabled: false
-
   general:
     logging:
       componentLevels:
@@ -89,18 +77,6 @@ spec:
           ingress:
             enabled: false
   techPreview:
-<<<<<<< HEAD
-=======
-    istiodRemote:
-      injectionURL: https://abc:15017/inject
-    meshConfig:
-      rootNamespace: external-istiod
-      defaultConfig:
-        discoveryAddress: abc:15012
-        proxyMetadata:
-          XDS_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
-          CA_ROOT_CA: /etc/ssl/certs/ca-certificates.crt
->>>>>>> d42fe47a (Initial support of istiod-remote chart from ustream)
     remote:
       enabled: true
     wasmExtensions:
