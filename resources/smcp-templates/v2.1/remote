@@ -29,6 +29,15 @@ spec:
     enabled: false
     type: Istiod
 
+  remoteMode:
+    enabled: true
+
+  controlPlaneMode:
+    enabled: false
+  
+  cni:
+    enabled: true
+
   policy:
     enabled: false
     type: None
