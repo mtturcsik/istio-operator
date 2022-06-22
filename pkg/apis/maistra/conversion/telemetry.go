@@ -34,6 +34,9 @@ func populateTelemetryValues(in *v2.ControlPlaneSpec, values map[string]interfac
 			if err := setHelmBoolValue(values, "telemetry.v2.enabled", false); err != nil {
 				return err
 			}
+			if err := setHelmBoolValue(values, "temeletry.common.enabled", false); err != nil {
+				return err
+			}
 		} else {
 			if err := setHelmBoolValue(values, "global.istioRemote", false); err != nil {
 				return err
