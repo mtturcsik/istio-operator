@@ -86,8 +86,6 @@ func autoConvert_v2_ControlPlaneSpec_To_v1_ControlPlaneSpec(in *v2.ControlPlaneS
 	// WARNING: in.Tracing requires manual conversion: does not exist in peer-type
 	// WARNING: in.Gateways requires manual conversion: does not exist in peer-type
 	// WARNING: in.Runtime requires manual conversion: does not exist in peer-type
-	// WARNING: in.ControlPlaneMode requires manual conversion: does not exist in peer-type
-	// WARNING: in.RemoteMode requires manual conversion: does not exist in peer-type
 	// WARNING: in.Addons requires manual conversion: does not exist in peer-type
 	// WARNING: in.TechPreview requires manual conversion: does not exist in peer-type
 	return nil
