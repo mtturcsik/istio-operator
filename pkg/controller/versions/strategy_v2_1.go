@@ -30,7 +30,7 @@ var (
 	v2_1ChartMapping = map[string]chartRenderingDetails{
 		DiscoveryChart: {
 			path:         "istio-control/istio-discovery",
-			enabledField: "istioDiscovery",
+			enabledField: "pilot",
 		},
 		GatewayIngressChart: {
 			path:         "gateways/istio-ingress",
